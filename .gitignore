@@ -10,3 +10,4 @@ venv/
 truth/
 answer_key*
 /data/
+dump.rdb
