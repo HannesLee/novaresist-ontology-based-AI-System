@@ -1,4 +1,9 @@
 @echo off
+rem 창을 작업 표시줄로 내린 채 다시 실행
+if not "%~1"=="min" (
+  start "" /min "%~f0" min
+  exit /b
+)
 chcp 65001 >nul
 title 온트윈 Ontwin
 echo.
@@ -18,8 +23,8 @@ if errorlevel 1 (
 )
 echo   [2/3] ERPNext 켜는 중...
 wsl -e bash -lc "cd ~/frappe_docker && docker compose -f pwd.yml up -d >/dev/null 2>&1"
-echo   [3/3] 온트윈 켜는 중... 잠시 뒤 브라우저가 열립니다.
-start "" cmd /c "timeout /t 12 >nul & start http://localhost:8501/ow/"
+echo   [3/3] 온트윈 켜는 중... 잠시 뒤 온트윈 창이 열립니다.
+start "" /min cmd /c "timeout /t 12 >nul & start "" msedge --app=http://localhost:8501/ow/ --window-size=1500,950"
 wsl -e bash -lc "~/ontwin/scripts/serve.sh"
 echo.
 echo   온트윈이 꺼졌습니다. 아무 키나 누르면 창이 닫혀요.
