@@ -1,0 +1,91 @@
+"""대화 루프: Claude가 도구를 부르고, 결과를 근거로 답한다."""
+import re
+import time
+
+import anthropic
+
+from app import config
+from app.agent import tools as T
+from app.functions.core import today
+
+ID = re.compile(r"\b(?:PO|MR|GR|QI|WO|SO|DN|NCR|AP|SE|SR)-\d\d-\d{3,4}(?::\S+)?|\b(?:RL|PL)-\d{6}-[A-Z0-9]+-\d\d|"
+                r"\bBP-[A-Z]{2}\d\d|\bAG-0\d|\bCU-[A-D]\b|\b(?:RS|PG|SV|AD|PK)-[A-Z]?\d\d|\bPR-[A-Z]{1,2}\d\d|\bMF-[A-Z0-9]+")
+
+
+def system_prompt(rt, mode, context=None):
+    d = rt["schema"]
+    base = f"""너는 '온트윈' — 가상 반도체 PR 소재사 노바레지스트(NovaResist)의 업무 판단 도우미다.
+기준일: {today()} (이 날짜 이후 정보는 없다고 본다)
+사용자: 구매·품질·생산·영업 담당자
+
+규칙
+- 숫자·날짜·lot 번호는 도구 결과에 나온 것만 쓴다. 추측한 값은 '추정'이라고 밝힌다.
+- 판단에는 근거 문서번호·객체 id를 붙인다.
+- 답 형식: **결론** (한두 문장) → **근거** (항목별, id 포함) → **확인 필요·다음 행동**
+- 한국어, 짧고 정확하게. 표가 낫다면 마크다운 표.
+"""
+    if mode == "ontology":
+        objs = "\n".join(f"- {o['name']} ({k}): {', '.join(o.get('aliases', []))}" for k, o in d["objects"].items())
+        rules = "\n".join(f"- {r['id']}: {r['when']} → {r['then']} ({r['next']})" for r in d["rules"])
+        base += f"""
+너는 회사 온톨로지(객체·연결·규칙)를 도구로 쓴다. 먼저 find/get으로 대상을 확정하고, 추적·판정 함수로 답한다.
+객체 종류(이름: 현업 별칭)
+{objs}
+
+규칙
+{rules}
+"""
+    else:
+        base += """
+너는 ERPNext를 직접 조회하는 도구만 가진다. erp_doctypes로 화면 구성을 보고 erp_list/erp_get으로 찾아라.
+"""
+    if context:
+        base += f"\n지금 사용자가 보고 있는 ERP 화면: {context}. '이 건', '이거'는 이 문서를 뜻한다.\n"
+    return base
+
+
+def ask(rt, question, mode="ontology", history=None, context=None, docs=True, model=None, max_rounds=16, on_step=None):
+    """질문 하나 → {'answer', 'steps', 'evidence', 'usage', 'seconds'}"""
+    client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    tools = T.ONTO_TOOLS if mode == "ontology" else T.ERP_TOOLS + (T.DOC_TOOLS if docs else [])
+    sys = [{"type": "text", "text": system_prompt(rt, mode, context), "cache_control": {"type": "ephemeral"}}]
+    msgs = list(history or []) + [{"role": "user", "content": question}]
+    steps, seen_text, usage = [], [], {"input": 0, "output": 0, "cache_read": 0}
+    t0 = time.time()
+    rt["onto"].clear()
+    answer = ""
+    for _ in range(max_rounds):
+        r = client.messages.create(model=model or config.CLAUDE_MODEL, max_tokens=4000, system=sys,
+                                   tools=tools, messages=msgs)
+        usage["input"] += r.usage.input_tokens
+        usage["output"] += r.usage.output_tokens
+        usage["cache_read"] += getattr(r.usage, "cache_read_input_tokens", 0) or 0
+        msgs.append({"role": "assistant", "content": [b.model_dump(exclude_none=True) for b in r.content]})
+        if r.stop_reason != "tool_use":
+            answer = "".join(b.text for b in r.content if b.type == "text")
+            break
+        results = []
+        for b in r.content:
+            if b.type != "tool_use":
+                continue
+            t1 = time.time()
+            try:
+                out = T.run(rt, mode, b.name, b.input)
+            except Exception as e:
+                out = {"오류": str(e)[:500]}
+            txt = T.dumps(out)
+            seen_text.append(txt)
+            step = {"tool": b.name, "input": b.input, "output": txt[:3000], "ms": int((time.time() - t1) * 1000)}
+            steps.append(step)
+            if on_step:
+                on_step(step)
+            results.append({"type": "tool_result", "tool_use_id": b.id, "content": txt})
+        msgs.append({"role": "user", "content": results})
+    else:
+        answer = "(도구 호출 횟수 한도에 도달했습니다. 질문을 좁혀 주세요.)"
+    found = set(ID.findall("\n".join(seen_text)))
+    evidence = sorted({x for x in ID.findall(answer) if x in found})
+    unverified = sorted({x for x in ID.findall(answer) if x not in found})
+    return {"answer": answer, "steps": steps, "evidence": evidence, "unverified": unverified, "usage": usage,
+            "seconds": round(time.time() - t0, 1), "mode": mode,
+            "history": msgs[:1 + len(history or [])] + [{"role": "assistant", "content": answer}]}

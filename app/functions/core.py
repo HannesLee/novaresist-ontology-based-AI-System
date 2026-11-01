@@ -140,7 +140,7 @@ class Onto:
 
     def _ref(self, t, i, props=None):
         o = self.s.obj(t, i)
-        r = {"id": i}
+        r = {"id": i, "type": t}
         if o and o["title"] != i:
             r["이름"] = o["title"]
         if props:
@@ -487,10 +487,12 @@ class Onto:
         c = self.s.obj("customer", cu)
         prod = (self.s.links_from("fg_lot", lot, "종류") or [{}])[0].get("dst_id")
         reasons, checks = [], []
-        need = int(c["props"].get("출하 가능 잔여 유효기간(일)") or 0)
+        need = self.rule_param("R01_ship_shelf_life", c)
+        if need is None:
+            need = int(c["props"].get("출하 가능 잔여 유효기간(일)") or 0)
         exp = d(o["props"].get("유효기간"))
         left = (exp - today()).days if exp else None
-        checks.append(f"잔여 유효기간 {left}일 / {c['title']} 기준 {need}일 (R01)")
+        checks.append(f"잔여 유효기간 {left}일 / {c['title']} 기준 {need}일 (R01, 정의 파일 v{self.d['meta']['version']})")
         if left is None or left < need:
             reasons.append(f"잔여 유효기간 부족: {left}일 < {need}일 (R01)")
         oqc = [l["src_id"] for l in self.s.links_to("fg_lot", lot, "대상") if l["src_type"] == "inspection"]
@@ -527,6 +529,17 @@ class Onto:
         return {"lot": lot, "고객": cu, "판정": "출하 가능" if not reasons else "출하 불가",
                 "불가 사유": reasons, "확인 항목": checks, "기준일": str(today())}
 
+    def rule_param(self, rule_id, customer_obj):
+        """규칙 숫자(정의 파일)를 고객 이름으로 찾는다. 화면에서 고친 숫자가 바로 판정에 쓰인다."""
+        r = next((x for x in self.d.get("rules", []) if x["id"] == rule_id), None)
+        if not r or not r.get("params"):
+            return None
+        short = customer_obj["title"].split("(")[0].strip()
+        for k in (customer_obj["id"], short, customer_obj["title"]):
+            if k in r["params"]:
+                return int(r["params"][k])
+        return None
+
     def _one(self, t, i, rel):
         ls = self.s.links_from(t, i, rel)
         return ls[0]["dst_id"] if ls else None
@@ -549,7 +562,7 @@ class Onto:
                 ok.append(f"{c['title']} {prod}")
             else:
                 out.append({"고객": c["title"], "제품": prod, "고객 품번": a["props"].get("고객 품번"),
-                            "재승인 기간(일)": c["props"].get("원재료 변경 시 재승인(일)"),
+                            "재승인 기간(일)": self.rule_param("R02_requalification", c) or c["props"].get("원재료 변경 시 재승인(일)"),
                             "현재 승인 공급사": [p.split("@")[1] for p in pairs if p.startswith(mat + "@")]})
         days = max([r["재승인 기간(일)"] or 0 for r in out], default=0)
         return {"원재료": mat, "새 공급사": sup, "이 원재료를 쓰는 제품": sorted(users),
