@@ -10,6 +10,9 @@
 #   source      ERP 출처(doctype)와 조건  key/title 구분 필드 / 화면 표시 필드
 #   properties  속성이름: ERP 필드       name_fields 이 객체를 부르는 다른 이름이 든 필드
 #   computed    계산 속성: 엔진 함수      links     rel(연결 이름) / to(상대) / via(이쪽 필드 또는 '상대화면.필드') / card(개수)
+#
+#   필터·조건 문법: "필드 = 값", "필드 != 값", "필드 in [값, 값]", "필드 in @객체"(그 객체의 id 중 하나), "parent.필드 = 값"(상위 문서 필드)
+#   via '상대화면.필드' 해석 순서: ① 이 문서의 하위 표 ② 이 문서가 가리키는 문서 ③ 이 문서를 가리키는 문서(또는 그 하위 표)
 # =====================================================================
 
 meta:
@@ -166,7 +169,7 @@ objects:
     name: 원재료 lot
     aliases: [자재 lot, RL, 원재료 배치]
     description: 입고 때 붙는 사내 lot.
-    source: {doctype: Batch, filter: "item 이 원재료"}
+    source: {doctype: Batch, filter: "item in @material"}
     key: name
     title: name
     name_fields: [custom_supplier_lot]
@@ -199,7 +202,7 @@ objects:
       고형분(%): custom_solid_pct
       보관 조건: custom_storage_condition
     links:
-      - {rel: 레시피, to: material, via: "BOM Item.item_code", card: "N..M", props: {1000L당 투입량: qty_per_1000l}}
+      - {rel: 레시피, to: material, via: "BOM Item.item_code", card: "N..M", props: {1000L당 투입량: qty}}
 
   work_order:
     name: 작업지시
@@ -225,7 +228,7 @@ objects:
       자재 대기(일): wo_material_wait_days
     links:
       - {rel: 제품, to: product, via: production_item, card: "N..1"}
-      - {rel: 투입, to: raw_lot, via: "Stock Entry Detail.batch_no (Manufacture·Transfer)", card: "N..M", props: {수량: qty, 투입일: posting_date}}
+      - {rel: 투입, to: raw_lot, via: "Stock Entry Detail.batch_no", where: ["parent.stock_entry_type = Manufacture", "s_warehouse != ''"], card: "N..M", props: {수량: qty, 투입일: posting_date}}
       - {rel: 공정 설비, to: equipment, via: "Job Card.workstation", card: "1..5", props: {공정: operation}}
       - {rel: 필터 사용, to: filter_lot, via: "Job Card.custom_filter_lot", card: "N..1"}
       - {rel: 생산, to: fg_lot, via: custom_fg_lot, card: "1"}
@@ -253,7 +256,9 @@ objects:
     properties:
       시작: from_time
       종료: to_time
-      사유: remarks
+      중단 시간(시간): downtime
+      중단 사유: stop_reason
+      비고: remarks
     links:
       - {rel: 대상, to: equipment, via: workstation, card: "N..1"}
 
@@ -274,7 +279,7 @@ objects:
   fg_lot:
     name: 완제품 lot
     aliases: [제품 lot, PL, 출하 lot]
-    source: {doctype: Batch, filter: "item 이 완제품"}
+    source: {doctype: Batch, filter: "item in @product"}
     key: name
     title: name
     properties:
@@ -359,8 +364,8 @@ objects:
     links:
       - {rel: 고객, to: customer, via: customer, card: "1"}
       - {rel: 제품, to: product, via: item, card: "1"}
-      - {rel: 승인된 원재료, to: material, via: "approved_materials(원재료@공급사 목록)", card: "N"}
-      - {rel: 승인된 공급사, to: supplier, via: "approved_materials(원재료@공급사 목록)", card: "N"}
+      - {rel: 승인된 원재료, to: material, via: "approved_materials", parse: pair_material, card: "N"}
+      - {rel: 승인된 공급사, to: supplier, via: "approved_materials", parse: pair_supplier, card: "N"}
 
   sales_order:
     name: 수주
@@ -411,9 +416,11 @@ objects:
     properties:
       종류: _doctype
       버전: version
+      S&OP 버전: sop_version
       작성일: created_on
       대상월: target_month
       계획월: plan_month
+      상태: plan_status
       수량(병): qty_bottles
     links:
       - {rel: 제품, to: product, via: item, card: "N..1"}

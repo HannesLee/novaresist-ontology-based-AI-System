@@ -9,3 +9,4 @@ venv/
 # 정답 기록·평가 정답지는 올리지 않는다
 truth/
 answer_key*
+/data/
