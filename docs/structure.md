@@ -1,6 +1,6 @@
 # 구조 (structure.md)
 
-버전 0.1 · 2026-11-01
+버전 0.2 · 2026-11-01
 
 ## 1. 전체 흐름
 ```
@@ -11,7 +11,7 @@ ontology/ontology.yaml ──▶ engine(정의 해석) ──▶ functions(추�
                                                        │
                               Claude API (tool use) ◀──┘
                                        │
-                        Streamlit UI: 챗봇 · 탐색기 · 비교 모드
+                        Streamlit UI: 챗봇 · 탐색기 · 비교 · 그래프 · 온톨로지 편집
 ```
 
 ## 2. 폴더
@@ -23,18 +23,23 @@ app/
     webhook.py       웹훅 수신(FastAPI) → sync 호출
   ontology/
     schema.py        ontology.yaml 읽기·검증
+    editor.py        정의 수정·버전 저장·되돌리기
     store.py         SQLite 저장소(objects, links, aliases, facts, sync_state)
     sync.py          전체 적재 / 변경분 적재 / 문서 1건 갱신
     docs_ingest.py   메일·회의록·결정 기록 → 이벤트 객체 + 사실 추출
   functions/
     trace.py         trace_back(lot), trace_forward(lot), common_factors(lots)
-    rules.py         shippable(lot, customer), requal_needed(material, supplier), suspect_lots(조건)
+    rules.py         규칙 판정: shippable, requal_needed, suspect_lots, iqc 경계·이상치
+    planning.py      shortage_forecast, impacted_orders
+    actions.py       보류 이동·NCR 초안(승인 후 실행)
   agent/
     tools.py         Claude에 주는 도구 정의(온톨로지 도구 / ERP 원시 조회 도구)
     chat.py          대화 루프, 근거 표시
     compare.py       비교 모드 실행·기록
   ui/
     app.py           Streamlit 진입점
+    graph.py         설계도·데이터 그래프
+    edit.py          온톨로지 편집 화면
 ontology/
   ontology.yaml      온톨로지 정의 (작성: 이시형)
 docs/                명세·평가

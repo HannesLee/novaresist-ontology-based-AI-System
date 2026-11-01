@@ -1,43 +1,45 @@
 # =====================================================================
-# 노바레지스트 온톨로지 정의 v1
-# 작성: 이시형
+# 노바레지스트 온톨로지 정의 v1.0
+# 설계: 이시형 · 기준 명세: docs/ontology_spec.md
 #
-# 이 파일 하나로 "회사 지도"를 정의한다. 프로그램(엔진)은 이 파일만 보고
-# ERPNext 데이터를 객체·링크로 만든다. 온톨로지를 바꾸려면 코드가 아니라 이 파일을 고친다.
-#
-# 작성 방법
-#   - 예시 2개(supplier, raw_lot)는 완성본이다. 이 모양을 따라 나머지를 채운다.
-#   - "TODO"가 있는 곳만 채우면 된다. source(ERP 출처)·key는 미리 넣어 두었다.
-#   - ERP 필드 이름은 docs/erp_fields.md 에서 찾는다.
-#   - 모르는 칸은 비워 두고 주석(#)으로 질문을 남겨도 된다.
+# 이 파일 하나가 "회사 지도"다. 엔진은 이 파일만 보고 ERPNext 데이터를 객체·링크로 만든다.
+# 온톨로지를 바꾸려면 코드가 아니라 이 파일을 고친다(프로그램 화면에서도 고칠 수 있고, 고치면 이 파일에 저장된다).
 #
 # 칸 설명
-#   name        현업에서 부르는 대표 이름
-#   aliases     현업에서 섞어 쓰는 다른 말 (검색·문서 연결에 쓰임)
-#   source      ERP 출처 화면(doctype)과 고르는 조건(filter)
-#   key         객체를 구분하는 ERP 필드 (보통 name)
-#   title       화면에 보일 이름 필드
-#   properties  속성이름: ERP 필드   (속성이름은 한국어로 써도 됨)
-#   name_fields 이 객체를 부르는 다른 이름이 들어 있는 필드 (공급사 품명, 생산 약칭 등)
-#   computed    계산 속성: 엔진이 제공하는 함수 이름 (목록은 맨 아래)
-#   links       다른 객체와의 연결
-#                 rel: 연결 이름 / to: 상대 객체 / via: 이 객체 쪽에서 상대를 가리키는 ERP 필드
+#   name        현업 대표 이름          aliases   현업에서 섞어 쓰는 말
+#   source      ERP 출처(doctype)와 조건  key/title 구분 필드 / 화면 표시 필드
+#   properties  속성이름: ERP 필드       name_fields 이 객체를 부르는 다른 이름이 든 필드
+#   computed    계산 속성: 엔진 함수      links     rel(연결 이름) / to(상대) / via(이쪽 필드 또는 '상대화면.필드') / card(개수)
 # =====================================================================
 
 meta:
-  company: NovaResist Co., Ltd.
-  version: 1
-  as_of: 2026-10-21
+  company: NovaResist Co., Ltd. (가상)
+  version: "1.0"
+  as_of: live            # ERP와 실시간 연동. 평가 때만 기준일 고정
+  principles:
+    - 온톨로지는 회사의 디지털 트윈이다. 현업이 계속 고쳐 가며 완성한다.
+    - 사실의 원천은 ERP와 문서다. ERP 값은 온톨로지에서 직접 고치지 않는다.
+    - 정의(객체·속성·연결·규칙)는 화면에서 고칠 수 있고, 모든 수정은 이력으로 남고 되돌릴 수 있다.
+    - 숫자는 함수가 만들고 판단은 규칙이 내린다. AI는 함수와 규칙의 결과만 인용한다.
+
+identity:
+  - 모든 객체는 ERP 문서번호를 id로 쓴다. 필터 lot은 lot 번호, 결정·사건은 출처+날짜를 id로 쓴다.
+  - 원재료는 ERP 코드·공급사 품명·생산 약칭 중 어느 이름으로 불러도 같은 원재료다.
+  - 완제품은 SKU·제품명·고객 품번 중 어느 이름으로 불러도 같은 완제품이다.
+  - 원재료 lot은 사내 lot 번호와 공급사 lot 번호로 찾는다. 공급사 lot의 하이픈 유무는 무시한다.
+  - 공급사·고객은 코드·정식 이름·줄임 이름(예 한빛폴리텍, A사)으로 찾는다.
+  - 별칭은 현업이 화면에서 추가할 수 있다. 같은 별칭이 두 객체에 걸리면 경고한다.
 
 objects:
 
-  # ---------------- 예시 1 (완성본) ----------------
   supplier:
     name: 공급사
     aliases: [BP, 협력사, 공급업체, 벤더]
+    description: 원재료를 파는 회사. 직거래가 기본이고 중국 공급사만 에이전시를 경유한다. '경유 에이전시'가 비어 있으면 직거래.
     source: {doctype: Supplier, filter: "supplier_group != 에이전시"}
     key: name
     title: supplier_name
+    name_fields: [supplier_name]
     properties:
       국가: country
       공급 분류: custom_bp_category
@@ -45,204 +47,513 @@ objects:
       표준 리드타임(일): custom_std_lead_time
       인코텀즈: custom_incoterms
       결제 조건: custom_payment_terms_text
-    name_fields: [supplier_name]
     computed:
+      거래 방식: supplier_channel                  # 직거래 / 에이전시 경유
       납기 준수율: supplier_on_time_rate
       회신 납기 대비 평균 지연(일): supplier_avg_delay
+      최근 부적합 건수: supplier_ncr_count
+      IQC 경계·이상치 연속: supplier_iqc_warning
     links:
-      - {rel: 경유, to: agency, via: custom_agency}
+      - {rel: 경유, to: agency, via: custom_agency, card: "0..1"}
 
-  # ---------------- 예시 2 (완성본) ----------------
+  agency:
+    name: 에이전시
+    aliases: [대행사, 수입 대행, 무역 대행]
+    description: 중국 공급사 구매를 대행하는 수입 대행사.
+    source: {doctype: Supplier, filter: "supplier_group = 에이전시"}
+    key: name
+    title: supplier_name
+    name_fields: [supplier_name]
+    properties:
+      국가: country
+      평균 통관 일수: custom_customs_days
+
+  material:
+    name: 원재료
+    aliases: [자재, 원료, RM]
+    description: 레진·PAG·솔벤트·첨가제·포장재.
+    source: {doctype: Item, filter: "item_group in [레진, PAG, 솔벤트, 첨가제, 포장재]"}
+    key: name
+    title: item_name
+    name_fields: [item_name, custom_production_alias, "Item Supplier.supplier_part_no"]
+    properties:
+      분류: item_group
+      세부 분류: custom_sub_category
+      단위: stock_uom
+      보관 조건: custom_storage_condition
+      유효기간(일): shelf_life_in_days
+      구매 리드타임(일): lead_time_days
+      안전재고 정책(개월): custom_safety_stock_months
+      위험물: custom_hazardous
+      밀도(g/mL): custom_density
+      lot 관리: has_batch_no
+      생산 약칭: custom_production_alias
+      IQC 전 창고: custom_qc_warehouse
+      합격 창고: custom_pass_warehouse
+      IQC 기준: quality_inspection_template
+    computed:
+      가용 재고: material_available_qty
+      안전재고 충족 개월수: safety_stock_months
+      미입고 발주 잔량: material_open_po_qty
+    links:
+      - {rel: 공급받음, to: supplier, via: "Item Supplier.supplier", card: "N..M", props: {공급사 품명: supplier_part_no}}
+
+  purchase:
+    name: 구매 건
+    aliases: [구매 오더, PO, 발주, 발주서, 품의, 구매요청, 오더]
+    description: 구매요청 → 품의 → 발주를 하나로 묶은 구매 단위.
+    source: {doctype: Purchase Order, join: "Material Request via Purchase Order Item.material_request"}
+    key: name
+    title: name
+    properties:
+      구매요청번호: "Purchase Order Item.material_request"
+      요청일: "Material Request.transaction_date"
+      요청 부서: "Material Request.custom_request_dept"
+      요청 사유: "Material Request.custom_request_reason"
+      품의번호: custom_approval_no
+      품의 상신일: custom_approval_submitted
+      품의 승인일: custom_approval_date
+      승인자: custom_approver
+      발주일: transaction_date
+      수량: "Purchase Order Item.stock_qty"
+      단가: "Purchase Order Item.rate"
+      금액: grand_total
+      공급사 품명: "Purchase Order Item.supplier_part_no"
+      납기 요청일: schedule_date
+      공급사 회신 납기: custom_supplier_confirmed_date
+      운송: custom_transport
+      비고: custom_note
+      ERP 상태: status
+    computed:
+      요청→발주(일): purchase_request_to_order_days
+      품의 소요(일): approval_lead_days
+      입고 누계: purchase_received_qty
+      미입고 잔량: purchase_open_qty
+      납기 대비 지연(일): purchase_delay_days
+      회신 납기 대비 지연(일): purchase_delay_vs_confirmed
+    links:
+      - {rel: 주문, to: material, via: "Purchase Order Item.item_code", card: "1"}
+      - {rel: 발주처, to: supplier, via: supplier, card: "1"}
+      - {rel: 경유, to: agency, via: custom_agency, card: "0..1"}
+
+  receipt:
+    name: 입고
+    aliases: [GR, 입하, 입고 건]
+    description: 공급사에서 물건이 들어온 기록.
+    source: {doctype: Purchase Receipt}
+    key: name
+    title: name
+    properties:
+      입고일: posting_date
+      ERP 입력일: custom_erp_entry_date
+      수량(입력 단위): "Purchase Receipt Item.qty"
+      입력 단위: "Purchase Receipt Item.uom"
+      수량(재고 단위): "Purchase Receipt Item.stock_qty"
+      입고 창고: "Purchase Receipt Item.warehouse"
+      COA 첨부: custom_coa_attached
+      공급사 lot: custom_supplier_lot
+      수기 발주번호: custom_po_ref
+      비고: remarks
+      상태: docstatus
+    computed:
+      입력 지연(일): entry_delay_days
+    links:
+      - {rel: 이행, to: purchase, via: "Purchase Receipt Item.purchase_order", fallback: custom_po_ref, card: "N..1"}
+      - {rel: 생성, to: raw_lot, via: "Purchase Receipt Item.batch_no", card: "0..1"}
+      - {rel: 공급사, to: supplier, via: supplier, card: "1"}
+
   raw_lot:
     name: 원재료 lot
-    aliases: [자재 lot, RL, 배치]
+    aliases: [자재 lot, RL, 원재료 배치]
+    description: 입고 때 붙는 사내 lot.
     source: {doctype: Batch, filter: "item 이 원재료"}
     key: name
     title: name
+    name_fields: [custom_supplier_lot]
     properties:
       공급사 lot: custom_supplier_lot
       제조일: manufacturing_date
       유효기간: expiry_date
-    name_fields: [custom_supplier_lot]
+      설명: description
     computed:
-      현재 위치·수량: lot_location
-      상태: lot_status                 # IQC 전 / 합격 / 보류 / 공정 투입 / 소진
+      현재 위치·수량: lot_location          # 저장하지 않고 물어볼 때마다 ERP에서 읽는다
+      상태: lot_status                      # IQC 전 / 합격 / 보류 / 공정 투입 / 소진
       잔여 유효기간(일): days_to_expiry
+      IQC 경계·이상치: iqc_flags
     links:
-      - {rel: 원재료, to: material, via: item}
-      - {rel: 공급사, to: supplier, via: supplier}
-      - {rel: 입고, to: receipt, via: "Purchase Receipt Item.batch_no"}   # 상대 화면 쪽 필드로 연결할 때
-
-  # ---------------- 여기부터 작성 ----------------
-  agency:
-    name: 에이전시
-    aliases: []                        # TODO
-    source: {doctype: Supplier, filter: "supplier_group = 에이전시"}
-    key: name
-    title: supplier_name
-    properties: {}                     # TODO (예: 평균 통관 일수)
-
-  material:
-    name: 원재료
-    aliases: []                        # TODO
-    source: {doctype: Item, filter: "item_group in [레진, PAG, 솔벤트, 첨가제, 포장재]"}
-    key: name
-    title: item_name
-    properties: {}                     # TODO (분류, 보관 조건, 유효기간, 리드타임, 안전재고 정책 …)
-    name_fields: []                    # TODO (생산 약칭 필드, 공급사 품명은 Item Supplier 쪽)
-    computed: {}                       # TODO (예: 가용 재고, 안전재고 충족 개월수)
-    links: []                          # TODO (공급받는 공급사: Item Supplier)
-
-  purchase:
-    name: 구매 건                       # 구매요청 + 품의 + 발주를 하나로 (결정 A)
-    aliases: []                        # TODO
-    source: {doctype: Purchase Order}
-    key: name
-    title: name
-    properties: {}                     # TODO (품의번호, 상신일, 승인일, 발주일, 납기 요청일, 회신 납기, 운송, 비고 …)
-    computed: {}                       # TODO (예: 지연 일수, 미입고 잔량, 품의 소요일)
-    links: []                          # TODO (원재료, 공급사, 에이전시, 구매요청)
-
-  receipt:
-    name: 입고
-    aliases: []                        # TODO
-    source: {doctype: Purchase Receipt}
-    key: name
-    title: name
-    properties: {}                     # TODO
-    links: []                          # TODO (구매 건 — 수기 발주번호 custom_po_ref 도 고려)
+      - {rel: 종류, to: material, via: item, card: "1"}
+      - {rel: 제조사, to: supplier, via: supplier, card: "1"}
 
   product:
     name: 완제품·레시피
-    aliases: []                        # TODO
+    aliases: [제품, SKU, 감광제, PR, 레시피, BOM, 배합비]
+    description: PR 제품과 1,000 L당 원재료 투입량.
     source: {doctype: Item, filter: "item_group in [i-line, KrF, ArF 건식, ArF 액침]"}
     key: name
     title: item_name
-    properties: {}                     # TODO
-    name_fields: []                    # TODO (고객 품번: Item Customer Detail)
-    links: []                          # TODO (레시피 원재료: BOM Item)
+    name_fields: [item_name, "Item Customer Detail.ref_code"]
+    properties:
+      제품군: item_group
+      유효기간(일): shelf_life_in_days
+      병당 단가: standard_rate
+      고형분(%): custom_solid_pct
+      보관 조건: custom_storage_condition
+    links:
+      - {rel: 레시피, to: material, via: "BOM Item.item_code", card: "N..M", props: {1000L당 투입량: qty_per_1000l}}
 
   work_order:
     name: 작업지시
-    aliases: []                        # TODO
+    aliases: [WO, 작지, 배치, 생산 오더]
+    description: 배치 하나의 생산 기록. 공정 5단계(칭량→배합→숙성→여과→충전·포장)를 포함한다.
     source: {doctype: Work Order}
     key: name
     title: name
-    properties: {}                     # TODO
-    links: []                          # TODO (제품, 생산한 완제품 lot, 투입 원재료 lot, 공정별 설비, 필터 lot)
+    properties:
+      배치량(L): custom_batch_size_l
+      구분: custom_wo_type
+      계획 시작일: planned_start_date
+      계획 종료일: custom_planned_end
+      실제 시작일: custom_actual_start
+      실제 종료일: custom_actual_end
+      상태: status
+      계획 수량(병): qty
+      생산 수량(병): produced_qty
+      수율(%): custom_yield_pct
+      배합 탱크: custom_mix_tank
+    computed:
+      공정 기록: wo_operations                # Job Card + Time Log: 공정·설비·시작·종료·작업조
+      자재 대기(일): wo_material_wait_days
+    links:
+      - {rel: 제품, to: product, via: production_item, card: "N..1"}
+      - {rel: 투입, to: raw_lot, via: "Stock Entry Detail.batch_no (Manufacture·Transfer)", card: "N..M", props: {수량: qty, 투입일: posting_date}}
+      - {rel: 공정 설비, to: equipment, via: "Job Card.workstation", card: "1..5", props: {공정: operation}}
+      - {rel: 필터 사용, to: filter_lot, via: "Job Card.custom_filter_lot", card: "N..1"}
+      - {rel: 생산, to: fg_lot, via: custom_fg_lot, card: "1"}
+      - {rel: 연결 수주, to: sales_order, via: custom_linked_so, card: "0..1"}
 
   equipment:
     name: 설비
-    aliases: []                        # TODO
+    aliases: [장비, 탱크, 라인, 워크스테이션]
+    description: 배합 탱크, 여과 라인, 충전 라인, 칭량실, QC 장비.
     source: {doctype: Workstation}
     key: name
     title: name
-    properties: {}                     # TODO
+    properties:
+      종류: workstation_type
+      용량: custom_capacity
+      정비 주기(일): custom_pm_cycle_days
+      동시 작업 가능 수: production_capacity
+
+  downtime:
+    name: 정비·중단
+    aliases: [정기보수, 설비 보수, PM, 다운타임]
+    source: {doctype: Downtime Entry}
+    key: name
+    title: name
+    properties:
+      시작: from_time
+      종료: to_time
+      사유: remarks
+    links:
+      - {rel: 대상, to: equipment, via: workstation, card: "N..1"}
 
   filter_lot:
-    name: 필터 lot                      # 승격 (결정 B): ERP에는 작업 기록 메모 칸뿐
-    aliases: []                        # TODO
+    name: 필터 lot
+    aliases: [필터, 카트리지 필터, 멤브레인 필터]
+    description: 여과 공정 필터의 생산 lot. ERP 화면이 없어 작업 기록의 메모 칸에서 만든다. 교체 이력만 있고 재고 관리는 없다.
     source: {derived_from: "Job Card.custom_filter_lot"}
     key: custom_filter_lot
-    properties: {}                     # TODO (처음·마지막 사용일, 사용 라인, 거쳐 간 배치 수)
+    computed:
+      처음 사용일: filter_first_use
+      마지막 사용일: filter_last_use
+      사용 여과 라인: filter_lines
+      거쳐 간 배치 수: filter_batch_count
+    links:
+      - {rel: 장착, to: equipment, via: "Job Card.workstation", card: "N..M"}
 
   fg_lot:
     name: 완제품 lot
-    aliases: []                        # TODO
+    aliases: [제품 lot, PL, 출하 lot]
     source: {doctype: Batch, filter: "item 이 완제품"}
     key: name
     title: name
-    properties: {}                     # TODO
-    computed: {}                       # TODO (현재 위치, 잔여 유효기간, 출하 가능 고객)
-    links: []                          # TODO (제품, 출하검사)
+    properties:
+      생산일: manufacturing_date
+      유효기간: expiry_date
+    computed:
+      현재 위치·수량: lot_location
+      잔여 유효기간(일): days_to_expiry
+      출하 가능 고객: fg_shippable_customers
+    links:
+      - {rel: 종류, to: product, via: item, card: "N..1"}
 
   inspection:
     name: 검사
-    aliases: []                        # TODO
+    aliases: [IQC, OQC, 수입검사, 출하검사, QC]
+    description: 원재료 입고 검사(IQC)와 완제품 출하검사.
     source: {doctype: Quality Inspection}
     key: name
     title: name
-    properties: {}                     # TODO (구분, 판정, 의뢰·판정 일시, 검사자 …)
-    measurements: {child: Quality Inspection Reading}   # 측정값(순도·수분·메탈·분자량 …)
-    links: []                          # TODO (대상 lot)
+    properties:
+      구분: custom_category
+      판정: status
+      의뢰 일시: custom_requested_at
+      시작 일시: custom_started_at
+      판정 일시: custom_decided_at
+      ERP 입력 일시: custom_erp_entry_at
+      검사자: custom_inspector
+      불합격 사유: remarks
+    measurements:
+      child: Quality Inspection Reading
+      fields: {항목: specification, 값: reading_1, 하한: min_value, 상한: max_value, 판정: status}
+    computed:
+      검사 소요(일): inspection_lead_days
+      규격 대비 여유: measurement_margin
+    links:
+      - {rel: 대상, to: [raw_lot, fg_lot], via: batch_no, card: "N..1"}
+      - {rel: 공급사, to: supplier, via: custom_supplier, card: "0..1"}
 
   ncr:
     name: 부적합·클레임
-    aliases: []                        # TODO
+    aliases: [NCR, 클레임, 품질 이슈, 불량, 부적합]
     source: {doctype: Non Conformance}
     key: name
     title: subject
-    properties: {}                     # TODO
-    links: []                          # TODO (대상 lot, 고객, 품목)
+    properties:
+      구분: custom_category
+      발생일: custom_occurred_on
+      현상: details
+      조치: corrective_action
+      원인: custom_cause
+      상태: status
+      종결일: custom_closed_on
+      절차: procedure
+    links:
+      - {rel: 대상, to: [raw_lot, fg_lot], via: custom_lot, card: "N..1"}
+      - {rel: 제기, to: customer, via: custom_customer, card: "0..1"}
+      - {rel: 품목, to: [material, product], via: custom_item, card: "0..1"}
 
   customer:
     name: 고객
-    aliases: []                        # TODO
+    aliases: [고객사, 거래처]
     source: {doctype: Customer}
     key: name
     title: customer_name
-    properties: {}                     # TODO (재승인 기간, 출하 가능 잔여 유효기간 …)
+    name_fields: [customer_name]
+    properties:
+      업종: customer_group
+      원재료 변경 시 재승인(일): custom_requal_days
+      출하 가능 잔여 유효기간(일): custom_min_shelf_life_days
+      매출 비중: custom_sales_share
 
   approval:
     name: 고객 승인
-    aliases: []                        # TODO
+    aliases: [퀄, 고객 인증, 승인 조건, qualification]
+    description: 고객×제품마다 승인받은 원재료@공급사 조합.
     source: {doctype: NR Customer Approval}
     key: name
-    properties: {}                     # TODO
-    links: []                          # TODO
+    properties:
+      고객 품번: customer_item_code
+      승인일: approval_date
+      승인된 원재료@공급사: approved_materials
+    links:
+      - {rel: 고객, to: customer, via: customer, card: "1"}
+      - {rel: 제품, to: product, via: item, card: "1"}
+      - {rel: 승인된 원재료, to: material, via: "approved_materials(원재료@공급사 목록)", card: "N"}
+      - {rel: 승인된 공급사, to: supplier, via: "approved_materials(원재료@공급사 목록)", card: "N"}
 
   sales_order:
     name: 수주
-    aliases: []                        # TODO
-    source: {doctype: Sales Order}
-    key: name
+    aliases: [SO, 주문]
+    description: 고객 주문 줄(수주번호 × 제품).
+    source: {doctype: Sales Order, rows: Sales Order Item}
+    key: "name:item_code"
     title: name
-    properties: {}                     # TODO
-    links: []                          # TODO
+    properties:
+      수주일: transaction_date
+      고객 품번: "Sales Order Item.customer_item_code"
+      수량(병): "Sales Order Item.qty"
+      단가: "Sales Order Item.rate"
+      납기 요청일: "Sales Order Item.delivery_date"
+      긴급: custom_urgent
+      비고: custom_note
+      ERP 상태: status
+    computed:
+      출하 누계: so_delivered_qty
+      미출하 수량: so_open_qty
+      납기 대비 지연(일): so_delay_days
+    links:
+      - {rel: 주문자, to: customer, via: customer, card: "N..1"}
+      - {rel: 제품, to: product, via: "Sales Order Item.item_code", card: "N..1"}
 
   delivery:
     name: 출하
-    aliases: []                        # TODO
-    source: {doctype: Delivery Note}
-    key: name
+    aliases: [DN, 납품, 출고]
+    source: {doctype: Delivery Note, rows: Delivery Note Item}
+    key: "name:idx"
     title: name
-    properties: {}                     # TODO
-    links: []                          # TODO (출하한 완제품 lot, 수주, 고객)
+    properties:
+      출하일: posting_date
+      ERP 입력일: custom_erp_entry_date
+      수량(병): "Delivery Note Item.qty"
+      출하 시 잔여 유효기간(일): "Delivery Note Item.custom_remaining_shelf_life_days"
+      납기 준수: "Delivery Note Item.custom_on_time"
+    links:
+      - {rel: 출하 lot, to: fg_lot, via: "Delivery Note Item.batch_no", card: "N..1"}
+      - {rel: 이행, to: sales_order, via: "Delivery Note Item.against_sales_order", card: "N..1"}
+      - {rel: 받는 곳, to: customer, via: customer, card: "N..1"}
+
+  plan:
+    name: 계획
+    aliases: [포캐스트, 판매 예측, 생산계획, S&OP]
+    source: {doctypes: [NR Sales Forecast, NR Production Plan]}
+    key: name
+    properties:
+      종류: _doctype
+      버전: version
+      작성일: created_on
+      대상월: target_month
+      계획월: plan_month
+      수량(병): qty_bottles
+    links:
+      - {rel: 제품, to: product, via: item, card: "N..1"}
+      - {rel: 고객, to: customer, via: customer, card: "0..1"}
 
   event:
     name: 결정·사건
-    aliases: [메일, 회의록, 결정 사항]
-    source: {documents: [메일, 회의록, 결정_기록]}   # ERP 밖 문서
-    # 문서에서 꺼낼 사실의 종류 — TODO: 현업에서 중요한 사실 종류를 추가
-    fact_types:
-      - 공급처·원료 변경
-      - 공급 지연·중단 공지
-      - 품질 의심·가설
-      - 고객 요청·변경
-      - 결정과 이유
+    aliases: [메일, 회의록, 결정 사항, 공지]
+    description: ERP 밖 문서에서 꺼낸 "언제, 무엇을, 왜". 언급된 객체에 붙고, 꺼낸 사실은 객체 속성으로도 저장한다.
+    source: {documents: [메일, 회의록, 결정_기록]}
+    key: "출처:날짜"
+    properties:
+      날짜: date
+      출처: source
+      종류: kind
+      내용: text
+      이유: reason
+      결정자: decided_by
+    fact_types: [공급처·원료 변경, 공급 지연·중단, 품질 의심·가설, 고객 요청·변경, 결정과 이유]
+    fact_format: "주어(객체) – 서술 – 값 – 시점 – 출처 – 확신도(명시/추정)"
+    links:
+      - {rel: 언급, to: "*", via: "별칭 규칙(identity)으로 문서 속 이름을 객체에 연결", card: "N..M"}
 
 # ---------------------------------------------------------------------
-# 규칙: 판단 기준. text는 사람이 읽는 문장, params는 함수가 쓰는 값.
+# IQC 검사 명세
+# ---------------------------------------------------------------------
+iqc:
+  items: [순도, 수분, 금속 26종, 분자량 편차, 분산도]
+  metals: [Ag, Al, As, Au, B, Ba, Ca, Cd, Co, Cr, Cu, Fe, K, Li, Mg, Mn, Mo, Na, Ni, Pb, Sn, Ti, V, W, Zn, Zr]
+  spec:
+    레진:   {순도_min: 99.0, 수분_max_ppm: 500, 금속_max_ppb: 10, 분자량편차_pct: 5, 분산도_max: 1.8, 금속_주기: "5 lot 중 1 lot"}
+    PAG:    {순도_min: 99.5, 수분_max_ppm: 300, 금속_max_ppb: 5,  금속_주기: "매 lot"}
+    솔벤트: {순도_min: 99.9, 수분_max_ppm: 200, 금속_max_ppb: 1,  금속_주기: "매 lot"}
+    첨가제: {순도_min: 99.0, 수분_max_ppm: 500, 금속_max_ppb: 10, 금속_주기: "매 lot"}
+    포장재: IQC 대상 아님(수량·외관만 입고 확인)
+  margin_warning_pct: 20        # 규격 대비 여유가 이보다 작으면 '합격·경계'
+  outlier_sigma: 2              # 같은 원재료·공급사 최근 lot 평균 ± 2σ 밖이면 '합격·이상치'
+  unmeasured: 측정하지 않은 항목은 '미측정'으로 명시한다
+
+# ---------------------------------------------------------------------
+# 규칙: 조건 → 판단 → 다음 행동
 # ---------------------------------------------------------------------
 rules:
-  - id: ship_shelf_life
-    text: 완제품 잔여 유효기간이 고객 기준 이상이어야 출하할 수 있다
-    applies_to: [fg_lot, customer]
+  - id: R01_ship_shelf_life
+    when: 완제품 lot 잔여 유효기간 < 고객 기준
     params: {A사: 120, B사: 120, C사: 90, D사: 90}
-
-  # TODO: 아래를 참고해 시형님 기준으로 추가·수정
-  # - 재승인: 승인 목록 밖 원재료@공급사를 쓰면 고객 재승인 필요 (기간)
-  # - 사용 가능 lot: IQC 합격 + 유효기간 내 + FEFO
-  # - 안전재고: 레진·PAG 2개월분
-  # - 의심 lot: 클레임 원인으로 지정된 원재료·공급사·제조일 범위의 lot과, 그 lot이 들어간 완제품
-  # - 출하검사 규격: 파티클 ≤ 20개/mL, Na·Fe ≤ 5 ppb …
+    then: 그 고객에게 출하 불가
+    next: 다른 고객 배정 검토
+  - id: R02_requalification
+    when: 고객 승인 목록에 없는 원재료@공급사를 레시피에 쓰려 함
+    params: {A사: 180, B사: 180, C사: 90, D사: 30}
+    then: 고객 재승인 필요(일)
+    next: 영업·품질에 알림
+  - id: R03_usable_lot
+    when: 원재료 lot이 합격이 아니거나 유효기간 경과
+    then: 투입 불가
+    next: 다른 lot 제안(FEFO)
+  - id: R04_safety_stock
+    when: 가용 재고 < 안전재고 정책
+    params: {레진: 2, PAG: 2}
+    then: 부족 위험
+    next: 구매에 긴급 발주 검토 요청
+  - id: R05_oqc_spec
+    when: 출하검사 파티클 > 20개/mL 또는 Na·Fe > 5 ppb 또는 막두께 ±1.5% 밖 또는 감도 ±3% 밖
+    then: 출하검사 불합격
+    next: 보류 창고 이동, NCR
+  - id: R06_iqc_spec
+    when: IQC 측정값이 iqc.spec 밖
+    then: IQC 불합격
+    next: 반품, NCR
+  - id: R07_iqc_borderline
+    when: IQC 합격이지만 여유 < 20% 또는 이상치
+    then: 경계 lot
+    next: 투입 시 기록, 추가 분석 권고
+  - id: R08_suspect_lot
+    when: 클레임 원인으로 지정된 조건(원재료·공급사·제조일 범위)에 맞는 원재료 lot
+    then: 의심 lot, 그 lot이 들어간 완제품 lot은 출하 보류 후보
+    next: 격리
+  - id: R09_ship_window
+    when: 납기 4일 전 도래
+    then: 출하 가능 시작
+    next: 출하 lot 선정(FEFO + R01)
+  - id: R10_partial_ship
+    when: 납기 경과 + 남은 수량의 30% 이상 가용
+    then: 분할 출하 가능
+    next: 분할 출하 제안
+  - id: R11_claim_report
+    when: 클레임 원인 미확정 30일 경과
+    then: 보고 대상
+    next: 생판회의 안건
+  - id: R12_supplier_quality_warning
+    when: 같은 공급사 IQC 경계·이상치가 최근 3 lot 연속
+    then: 공급사 품질 경고
+    next: 공급사에 원료·공정 변경 이력 확인 요청
 
 # ---------------------------------------------------------------------
-# 엔진이 제공하는 계산 함수 (computed 에 쓸 수 있는 이름)
-#   lot_location, lot_status, days_to_expiry,
-#   supplier_on_time_rate, supplier_avg_delay,
-#   purchase_delay_days, purchase_open_qty, approval_lead_days,
-#   material_available_qty, safety_stock_months,
-#   wo_material_wait_days, fg_shippable_customers
-# 필요한 계산이 목록에 없으면 이름과 설명만 적어 두면 만들어 준다.
+# 함수 (AI가 부르는 질문 도구)
 # ---------------------------------------------------------------------
+functions:
+  find:            {in: "이름·코드·별칭", out: 후보 객체}
+  get:             {in: 객체, out: "속성, 연결 요약, 관련 사실·문서"}
+  trace_back:      {in: 완제품 lot, out: "작업지시, 공정 설비, 필터 lot, 투입 원재료 lot(공급사·입고일·IQC 측정값), 관련 문서"}
+  trace_forward:   {in: "원재료 lot 또는 조건", out: "들어간 완제품 lot, 현재 위치, 출하된 고객"}
+  common_factors:  {in: "완제품 lot 목록, 비교군", out: "원재료 lot·공급사·설비·필터 lot·측정값 경향의 차이"}
+  measurement_trend: {in: "원재료, 공급사, 항목, 기간", out: "lot별 값 추이, 경계·이상치"}
+  shippable:       {in: "완제품 lot, 고객", out: "가능/불가와 사유"}
+  requal_needed:   {in: "원재료, 새 공급사", out: "대상 고객·제품, 기간"}
+  shortage_forecast: {in: "원재료, 기간", out: "재고, 미입고 발주, 계획 사용량, 부족 시점"}
+  impacted_orders: {in: "원재료 지연 또는 설비 중단", out: "늦어질 작업지시와 수주"}
+  suspect_lots:    {in: 조건, out: "원재료 lot, 영향 완제품 lot, 재고·출하 위치"}
+
+# ---------------------------------------------------------------------
+# 액션 (ERP에 반영, 사람 승인 필수)
+# ---------------------------------------------------------------------
+actions:
+  hold_fg_lot:     {what: "완제품 lot을 보류 창고(WH-40)로 옮기는 이동 전표 생성", approval: required}
+  quarantine_raw_lot: {what: "원재료 lot을 보류 창고로 이동", approval: required}
+  draft_ncr:       {what: "NCR 초안 생성(대상 lot, 현상, 근거)", approval: required}
+  policy: AI는 제안만 하고 사람이 승인해야 실행한다. 실행 결과는 결정·사건으로 기록한다.
+
+# ---------------------------------------------------------------------
+# 갱신·수정·품질
+# ---------------------------------------------------------------------
+sync:
+  - ERP 문서가 제출·수정·취소되면(웹훅) 해당 객체와 연결만 다시 읽는다.
+  - 재고 위치·수량은 저장하지 않고 물어볼 때마다 ERP에서 읽는다.
+  - 취소된 문서는 지우지 않고 '취소' 상태로 남긴다.
+  - 갱신마다 시각과 바뀐 객체를 기록한다.
+
+editing:
+  - 화면에서 정의를 고칠 수 있다(객체·속성·연결 추가·수정, 별칭, 규칙 숫자, 사실 확인).
+  - 모든 수정은 누가·언제·무엇을·왜와 함께 이력에 남고 버전이 오른다(1.0 → 1.1). 되돌릴 수 있다.
+  - 규칙 숫자를 바꾸면 그 규칙을 쓰는 판정이 바로 다시 계산된다.
+  - 화면에서 고친 정의는 이 파일에 저장된다.
+  - 그래프 보기 두 가지 — 설계도(객체 종류 지도)와 데이터 그래프(예 클레임 lot → 공급사 펼치기).
+
+data_quality:
+  - {id: Q01, when: "입고가 구매 건에 ERP로 연결되지 않음", flag: 연결 끊김, suggest: "수기 발주번호로 연결"}
+  - {id: Q02, when: "품의 승인일 또는 공급사 회신 납기 비어 있음", flag: 누락}
+  - {id: Q03, when: "실제일과 ERP 입력일 차이 ≥ 3일", flag: 늦은 입력}
+  - {id: Q04, when: "같은 공급사 lot으로 입고 2건", flag: 중복 의심}
+  - {id: Q05, when: "여과 공정에 필터 lot 비어 있음", flag: 기록 누락}
+  - {id: Q06, when: "고객 취소 메일이 있는데 ERP 수주가 살아 있음", flag: 불일치}

@@ -1,0 +1,122 @@
+﻿템플릿,검사 항목,단위,하한,상한,장비,주기
+IQC-레진,순도,%,99.0,,COA·GC/HPLC,매 lot
+IQC-레진,수분,ppm,,500,QC-KF,매 lot
+IQC-레진,분자량 편차(Mw),%,-5,5,QC-GPC,매 lot
+IQC-레진,분산도(PDI),,,1.8,QC-GPC,매 lot
+IQC-레진,금속 Ag,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Al,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 As,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Au,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 B,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Ba,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Ca,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Cd,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Co,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Cr,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Cu,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Fe,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 K,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Li,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Mg,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Mn,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Mo,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Na,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Ni,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Pb,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Sn,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Ti,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 V,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 W,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Zn,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-레진,금속 Zr,ppb,,10.0,QC-ICP,5 lot 중 1 lot
+IQC-PAG,순도,%,99.5,,COA·GC/HPLC,매 lot
+IQC-PAG,수분,ppm,,300,QC-KF,매 lot
+IQC-PAG,금속 Ag,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Al,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 As,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Au,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 B,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Ba,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Ca,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Cd,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Co,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Cr,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Cu,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Fe,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 K,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Li,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Mg,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Mn,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Mo,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Na,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Ni,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Pb,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Sn,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Ti,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 V,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 W,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Zn,ppb,,5.0,QC-ICP,매 lot
+IQC-PAG,금속 Zr,ppb,,5.0,QC-ICP,매 lot
+IQC-솔벤트,순도,%,99.9,,COA·GC/HPLC,매 lot
+IQC-솔벤트,수분,ppm,,200,QC-KF,매 lot
+IQC-솔벤트,금속 Ag,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Al,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 As,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Au,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 B,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Ba,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Ca,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Cd,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Co,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Cr,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Cu,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Fe,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 K,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Li,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Mg,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Mn,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Mo,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Na,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Ni,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Pb,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Sn,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Ti,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 V,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 W,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Zn,ppb,,1.0,QC-ICP,매 lot
+IQC-솔벤트,금속 Zr,ppb,,1.0,QC-ICP,매 lot
+IQC-첨가제,순도,%,99.0,,COA·GC/HPLC,매 lot
+IQC-첨가제,수분,ppm,,500,QC-KF,매 lot
+IQC-첨가제,금속 Ag,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Al,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 As,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Au,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 B,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Ba,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Ca,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Cd,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Co,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Cr,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Cu,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Fe,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 K,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Li,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Mg,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Mn,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Mo,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Na,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Ni,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Pb,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Sn,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Ti,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 V,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 W,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Zn,ppb,,10.0,QC-ICP,매 lot
+IQC-첨가제,금속 Zr,ppb,,10.0,QC-ICP,매 lot
+IQC-포장재,수량·외관,,,,육안,매 입고
+IQC-포장재,바틀 세정 성적서,,,,서류,매 입고
+OQC-완제품,파티클(0.1µm 이상),개/mL,,20,QC-LPC,매 lot
+OQC-완제품,금속 Na,ppb,,5,QC-ICP,매 lot
+OQC-완제품,금속 Fe,ppb,,5,QC-ICP,매 lot
+OQC-완제품,막두께 편차,%,-1.5,1.5,QC-LITHO,매 lot
+OQC-완제품,감도 편차,%,-3,3,QC-LITHO,매 lot
