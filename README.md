@@ -61,11 +61,30 @@ flowchart LR
 - [x] 온톨로지 v0.1 설계 및 1차 평가 (ERP만 84점 / ERP+문서 원문 95점 / 온톨로지 96.5점, 16문항)
 - [x] 온톨로지 정의 파일 v1.0 (객체 20종, 규칙 12개, 함수 11개, 액션 3개)
 - [x] IQC 항목 개편 (순도·수분·금속 26종·분자량 편차·분산도)
-- [ ] ERP 실시간 연동 + 온톨로지 엔진
-- [ ] 함수 층, Claude 챗봇, 웹 화면
-- [ ] 온톨로지 편집(버전 이력·되돌리기)과 그래프 보기
-- [ ] ERP 화면 위 챗봇, 작업대(카드 → 표·차트), 엑셀·파워포인트·워드 내보내기
+- [x] ERP 실시간 연동 + 온톨로지 엔진 (객체 4,659개·연결 13,137개, 3초 / ERP 변경 20초 안에 반영)
+- [x] 함수 층(추적·판정 11개, 계산 속성 30개), Claude 챗봇, 웹 화면
+- [x] 온톨로지 편집(버전 이력·되돌리기)과 그래프 보기(설계도·데이터 그래프)
+- [x] ERP 화면 위 챗봇, 작업대(카드 → 표·차트), 엑셀·파워포인트·워드 내보내기
 - [ ] 일반 Claude vs 본 시스템 비교 평가·시연 영상
+
+## 실행 방법 (Windows + WSL Ubuntu)
+
+ERPNext가 Docker로 켜져 있어야 합니다(`http://localhost:8080`).
+
+```bash
+git clone https://github.com/HannesLee/novaresist-ontology-based-AI-System.git
+cd novaresist-ontology-based-AI-System
+pip install -r requirements.txt          # 처음 한 번
+cp .env.example .env                     # ERP 주소·API 키, Anthropic API 키 입력
+python3 -m app check                     # ERP 접속 + 정의 파일 검증
+python3 -m app sync                      # ERP 전체 읽기 → 온톨로지
+python3 -m app serve                     # http://localhost:8501/ow/
+```
+
+| 주소 | 화면 |
+| --- | --- |
+| `localhost:8501/ow/` | 온트윈: 챗봇, 작업대, 비교, 그래프, 온톨로지 편집, 동기화 |
+| `localhost:8501/app` | ERPNext 화면 + 오른쪽 아래 온트윈 챗봇(지금 보는 문서를 알고 답함) |
 
 ## 만든 사람
 

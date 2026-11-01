@@ -53,19 +53,27 @@ class Sync:
         return self.rebuild(kind="webhook", doctype=doctype, name=name)
 
     def poll(self):
-        """마지막 동기화 이후 modified가 바뀐 문서만 다시 읽는다."""
-        last = self.store.raw_doctypes()
-        total = 0
+        """바뀐 문서(새로 생김·수정·삭제)만 다시 읽는다. 문서 번호와 수정 시각만 비교하므로 가볍다."""
+        total, gone = 0, 0
         for dt in self.parents:
-            since = last.get(dt)
-            flt = [["modified", ">", since]] if since else None
-            for r in self.erp.get_all(dt, filters=flt, fields=("name",)):
-                doc = self.erp.get(dt, r["name"])
-                kids = {f: cdt for cdt, f in self.schema.tables(dt).items() if (cdt, dt) in self.fetch}
-                self.store.put_doc(doc, kids)
-                total += 1
+            erp_rows = {r["name"]: str(r["modified"]) for r in self.erp.get_all(dt, fields=("name", "modified"))}
+            mine = {r[0]: str(r[1]) for r in self.store.db.execute("SELECT name, modified FROM raw WHERE doctype=?", (dt,))}
+            kids = {f: cdt for cdt, f in self.schema.tables(dt).items() if (cdt, dt) in self.fetch}
+            for name, mod in erp_rows.items():
+                if mine.get(name) != mod:
+                    doc = self.erp.get(dt, name)
+                    if doc:
+                        self.store.put_doc(doc, kids)
+                        total += 1
+            for name in set(mine) - set(erp_rows):
+                self.store.db.execute("DELETE FROM raw WHERE doctype=? AND name=?", (dt, name))
+                for cdt in kids.values():
+                    self.store.db.execute("DELETE FROM raw WHERE doctype=? AND parent=? AND parenttype=?", (cdt, name, dt))
+                gone += 1
         self.store.db.commit()
-        return self.rebuild(kind="poll", detail=f"{total}건 다시 읽음") if total else 0
+        if total or gone:
+            return self.rebuild(kind="poll", detail=f"다시 읽음 {total}건, 삭제 {gone}건")
+        return 0
 
     # ---------- 객체 다시 만들기 ----------
     def rebuild(self, kind="rebuild", doctype="", name="", detail=""):
