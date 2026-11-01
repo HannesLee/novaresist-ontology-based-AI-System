@@ -1,4 +1,6 @@
-# NovaResist Ontology-based AI System
+# 온트윈 (Ontwin)
+
+> 노바레지스트(가상 반도체 PR 소재사)에 적용한 ERP + 온톨로지 + Claude 업무 판단 도우미
 
 **반도체 소재·스페셜티 화학 중소기업의 품질·SCM 판단을 돕는 AI 에이전트**
 ERPNext(실제 ERP) + 온톨로지(회사 지도) + Claude API(대화형 AI)
@@ -62,6 +64,7 @@ flowchart LR
 - [ ] ERP 실시간 연동 + 온톨로지 엔진
 - [ ] 함수 층, Claude 챗봇, 웹 화면
 - [ ] 온톨로지 편집(버전 이력·되돌리기)과 그래프 보기
+- [ ] ERP 화면 위 챗봇, 작업대(카드 → 표·차트), 엑셀·파워포인트·워드 내보내기
 - [ ] 일반 Claude vs 본 시스템 비교 평가·시연 영상
 
 ## 만든 사람

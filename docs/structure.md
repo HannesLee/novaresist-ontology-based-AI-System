@@ -1,6 +1,6 @@
-# 구조 (structure.md)
+# 온트윈(Ontwin) 구조 (structure.md)
 
-버전 0.2 · 2026-11-01
+버전 0.3 · 2026-11-01
 
 ## 1. 전체 흐름
 ```
@@ -11,7 +11,7 @@ ontology/ontology.yaml ──▶ engine(정의 해석) ──▶ functions(추�
                                                        │
                               Claude API (tool use) ◀──┘
                                        │
-                        Streamlit UI: 챗봇 · 탐색기 · 비교 · 그래프 · 온톨로지 편집
+                        웹 화면: ERP 보기+챗봇 · 작업대 · 비교 · 그래프 · 온톨로지 편집 → 내보내기(xlsx·pptx·docx·BI)
 ```
 
 ## 2. 폴더
@@ -36,10 +36,16 @@ app/
     tools.py         Claude에 주는 도구 정의(온톨로지 도구 / ERP 원시 조회 도구)
     chat.py          대화 루프, 근거 표시
     compare.py       비교 모드 실행·기록
-  ui/
-    app.py           Streamlit 진입점
-    graph.py         설계도·데이터 그래프
-    edit.py          온톨로지 편집 화면
+  web/
+    server.py        FastAPI 진입점(화면·API·웹훅·ERP 중계)
+    erp_proxy.py     ERPNext 중계 + 챗봇 위젯 끼워 넣기
+    static/          화면(HTML·JS): erp, chat, board, compare, graph, edit
+  board/
+    cards.py         데이터 카드(ERP 목록·객체 집합·함수 결과)
+    runner.py        생성 코드 격리 실행(pandas)
+  export/
+    office.py        xlsx·pptx·docx 내보내기
+    bi.py            BI 어댑터
 ontology/
   ontology.yaml      온톨로지 정의 (작성: 이시형)
 docs/                명세·평가
@@ -50,8 +56,7 @@ erp_seed/            가상 회사 데이터 적재 스크립트(nr_load.py 등)
 | 프로세스 | 역할 | 포트 |
 | --- | --- | --- |
 | ERPNext (Docker) | ERP | 8080 |
-| webhook (uvicorn) | 웹훅 수신 → 동기화 | 8001 |
-| ui (streamlit) | 챗봇·탐색기·비교 | 8501 |
+| ontwin (uvicorn) | 화면·API·웹훅·ERP 중계 | 8501 |
 
 ## 4. 데이터 흐름 예: "이 lot 출하해도 돼?"
 1. 사용자가 질문 → Claude가 `find("PL-260918-K05-01")` 호출
