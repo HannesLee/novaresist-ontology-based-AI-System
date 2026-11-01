@@ -27,7 +27,7 @@ const loaded = {};
 function show(tab) {
   $$('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
   $$('.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + tab));
-  if (tab === 'erp' && !$('#erpFrame').src) $('#erpFrame').src = $('#erpFrame').dataset.src;
+  if (tab === 'erp' && !$('#erpFrame').src) { renderErpNav(); openErp('purchase-order'); }
   if (!loaded[tab]) { loaded[tab] = true; ({ board: loadBoard, graph: () => graphMode('schema'), onto: () => ontoMode('rules'), sync: loadSync, compare: loadCmpLog })[tab]?.(); }
   if (tab === 'sync') loadSync();
 }
@@ -403,3 +403,24 @@ function renderSync(s) {
   $('#hookUrl').textContent = 'http://host.docker.internal:8501/ow/webhook';
 }
 $('#fullSync').onclick = async () => { $('#fullSync').disabled = true; await api('sync/full', { method: 'POST' }); $('#fullSync').disabled = false; loadSync(); toast('전체 동기화 완료'); };
+
+// ---------------- ERP 화면: 업무별 바로가기 ----------------
+const ERP_MENU = [
+  ['구매', [['material-request', '구매요청'], ['purchase-order', '발주(구매 건)'], ['purchase-receipt', '입고'], ['supplier', '공급사']]],
+  ['품질', [['quality-inspection', '검사', 'IQC·출하검사 측정값'], ['non-conformance', '부적합·클레임'], ['quality-inspection-template', '검사 기준']]],
+  ['생산', [['work-order', '작업지시'], ['job-card', '작업 기록', '공정·설비·필터 lot'], ['bom', '레시피(BOM)'], ['workstation', '설비'], ['downtime-entry', '정비·중단'], ['nr-production-plan', '생산계획']]],
+  ['재고', [['batch', 'lot', '원재료·완제품 lot'], ['stock-entry', '재고 이동'], ['query-report/Stock Balance', '재고 현황'], ['query-report/Batch-Wise Balance History', 'lot별 재고']]],
+  ['영업', [['sales-order', '수주'], ['delivery-note', '출하'], ['customer', '고객'], ['nr-customer-approval', '고객 승인'], ['nr-sales-forecast', '판매 예측']]],
+  ['기준정보', [['item', '품목', '원재료·완제품'], ['warehouse', '창고']]],
+];
+function renderErpNav() {
+  $('#erpNav').innerHTML = ERP_MENU.map(([g, items]) => `<h5>${g}</h5>` + items.map(([r, label, sub]) =>
+    `<button data-r="${esc(r)}">${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ''}</button>`).join('')).join('');
+  $$('#erpNav button').forEach(b => b.onclick = () => openErp(b.dataset.r));
+}
+function openErp(route) {
+  const url = '/app/' + route.split('/').map(encodeURIComponent).join('/');
+  $('#erpFrame').src = url; $('#erpOpen').href = url;
+  $$('#erpNav button').forEach(b => b.classList.toggle('on', b.dataset.r === route));
+  $('#erpTitle').textContent = $(`#erpNav button[data-r="${route}"]`)?.firstChild?.textContent || 'ERPNext';
+}

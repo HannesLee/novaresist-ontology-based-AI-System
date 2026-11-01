@@ -22,6 +22,14 @@
   #ow-form button{background:#1f3a5f;color:#fff;border:none;border-radius:8px;padding:0 14px;cursor:pointer}
   .ow-sug{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px} .ow-sug button{border:1px solid #d5dbe6;background:#fff;border-radius:14px;padding:4px 10px;font-size:12px;cursor:pointer}`;
   const st = document.createElement('style'); st.textContent = css; document.head.append(st);
+  // 온트윈 안(iframe)에서는 ERPNext 자체 메뉴를 숨기고 온트윈의 업무별 메뉴를 쓴다
+  if (window.top !== window.self) {
+    const em = document.createElement('style');
+    em.textContent = `.dock,.body-sidebar-container{display:none!important}
+      body{--dock-width:0px!important;--sidebar-width:0px!important}
+      .main-section,.page-container,.layout-main,.container.page-body{margin-left:0!important;padding-left:0!important}`;
+    document.head.append(em);
+  }
   if (!window.marked) { const s = document.createElement('script'); s.src = '/ow/static/vendor/marked.min.js'; document.head.append(s); }
 
   const btn = document.createElement('button'); btn.id = 'ow-btn'; btn.textContent = '◐ 온트윈';

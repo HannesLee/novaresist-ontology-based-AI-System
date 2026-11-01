@@ -67,6 +67,14 @@ main { flex: 1; min-width: 0; position: relative; }
 .erp-bar { padding: 8px 16px; background: #fffbe8; border-bottom: 1px solid #f0e3a8; font-size: 13px; }
 .erp-bar a { margin-left: 10px; }
 #erpFrame { flex: 1; border: none; width: 100%; background: #fff; }
+.erp-wrap { display: flex; height: 100%; }
+.erp-nav { width: 190px; background: #fff; border-right: 1px solid var(--line); overflow: auto; padding: 8px 6px; flex-shrink: 0; }
+.erp-nav h5 { margin: 12px 8px 4px; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+.erp-nav button { display: block; width: 100%; text-align: left; border: none; background: none; padding: 6px 10px; border-radius: 6px; font-size: 13px; }
+.erp-nav button:hover { background: #f2f4f8; }
+.erp-nav button.on { background: var(--accent-soft); color: var(--navy); font-weight: 600; }
+.erp-nav small { display: block; color: var(--muted); font-size: 11px; font-weight: 400; }
+.erp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 /* 작업대 */
 .board-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }

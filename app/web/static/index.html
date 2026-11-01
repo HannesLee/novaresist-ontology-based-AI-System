@@ -55,9 +55,14 @@
 
     <!-- ERP -->
     <section id="tab-erp" class="tab">
-      <div class="erp-bar">ERPNext 화면입니다. 오른쪽 아래 <b>온트윈</b> 버튼으로 지금 보는 문서에 대해 물어볼 수 있어요.
-        <a href="/app" target="_blank">새 창으로 열기 ↗</a></div>
-      <iframe id="erpFrame" data-src="/app" title="ERPNext"></iframe>
+      <div class="erp-wrap">
+        <nav class="erp-nav" id="erpNav"></nav>
+        <div class="erp-main">
+          <div class="erp-bar"><span id="erpTitle">ERPNext</span> · 오른쪽 아래 <b>온트윈</b> 버튼으로 지금 보는 문서에 대해 물어볼 수 있어요.
+            <a id="erpOpen" href="/app" target="_blank">새 창으로 열기 ↗</a></div>
+          <iframe id="erpFrame" data-src="/app/purchase-order" title="ERPNext"></iframe>
+        </div>
+      </div>
     </section>
 
     <!-- 작업대 -->
