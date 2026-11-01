@@ -94,7 +94,7 @@
         $('#ow-msgs').scrollTop = 1e9;
       }
       history = res.history.slice(-10);
-      box.innerHTML = (window.marked ? marked.parse(res.answer) : esc(res.answer)) +
+      box.innerHTML = (window.marked ? marked.parse(res.answer.replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>')) : esc(res.answer)) +
         `<div class="ow-meta">${res.seconds}초 · 함수 ${res.steps.length}번 · 근거 ${res.evidence.join(', ')}</div>`;
     } catch (err) { box.innerHTML = '오류: ' + esc(err.message); }
     $('#ow-msgs').scrollTop = 1e9;

@@ -10,7 +10,8 @@ const api = async (path, opt = {}) => {
   return r.json();
 };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const md = s => window.marked ? marked.parse(s || '') : esc(s);
+const boldFix = s => (s || '').replace(/\*\*([^*\n]+?)\*\*/g, '<strong>$1</strong>');  // 한글 바로 앞뒤 굵게 표시 보정
+const md = s => window.marked ? marked.parse(boldFix(s)) : esc(s);
 const toast = (t, ms = 2500) => { const d = document.createElement('div'); d.className = 'toast'; d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), ms); };
 const fmt = v => v === null || v === undefined ? '' : typeof v === 'number' ? (Number.isInteger(v) ? v.toLocaleString() : v.toLocaleString(undefined, { maximumFractionDigits: 3 }))
   : Array.isArray(v) ? v.map(x => typeof x === 'object' && x ? Object.values(x).join(' ') : x).join(' · ')
