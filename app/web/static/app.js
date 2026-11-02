@@ -479,31 +479,51 @@ function renderTerms(body) {
 function termOptions(sel, multi) {
   return OM.terms.map(t => `<option value="${t.key}" ${(multi ? sel.includes(t.key) : sel === t.key) ? 'selected' : ''}>${esc(t.name)}</option>`).join('');
 }
-const CARD_OPTS = [['1', '하나'], ['0..1', '없거나 하나'], ['N..1', '여럿이 하나에'], ['N..M', '여럿과 여럿'], ['N', '여럿']];
+// 개수: 주어 1개당 상대가 몇 개인가
+const CARD_OPTS = [['1', '꼭 1개'], ['0..1', '없거나 1개'], ['N', '여러 개']];
+const cardGroup = c => ({ '1': '1', 'N..1': '1', '0..1': '0..1' }[c] || 'N');
+// 받침에 맞춰 조사 고르기: 공급사를 / 원재료 lot을 / 구매 건은
+function hasBatchim(word) {
+  const ch = String(word).trim().slice(-1);
+  const code = ch.charCodeAt(0);
+  if (code >= 0xAC00 && code <= 0xD7A3) return (code - 0xAC00) % 28 !== 0;
+  return /[bcdfgjklmnpqrstvxz0-9]$/i.test(ch);
+}
+function josa(word, pair) {
+  const [a, b] = { '을(를)': ['을', '를'], '이(가)': ['이', '가'], '은(는)': ['은', '는'], '와(과)': ['과', '와'], '으로(로)': ['으로', '로'] }[pair] || [pair, pair];
+  return hasBatchim(word) ? a : b;
+}
+function sentenceTail(target, phrase) {  // "을(를) 경유한다" → "를 경유한다"
+  const m = /^(을\(를\)|이\(가\)|은\(는\)|와\(과\)|으로\(로\))(.*)$/.exec(phrase || '');
+  return m ? josa(target, m[1]) + m[2] : (phrase || '');
+}
 function renderRels(body) {
   const subj = body.dataset.subj || '';
   const links = OM.links.filter(l => !subj || l.subject === subj || l.to.includes(subj));
   const props = OM.props.filter(p => !subj || p.subject === subj);
-  body.innerHTML = `<p class="lead"><b>관계문</b>은 온톨로지의 뼈대예요. "A는 B와 ○○ 관계다", "A는 ○○ 속성을 가진다"를 문장으로 고치면 그래프 DB와 AI가 바로 그 구조로 바뀌어요.</p>
+  body.innerHTML = `<p class="lead"><b>관계문</b>은 온톨로지의 뼈대예요. "구매 건은 공급사에 발주한다"처럼 <b>주어 + 대상 + 동사</b> 문장으로 씁니다. '1개당'은 주어 하나에 대상이 몇 개 붙는지예요(구매 건 1개당 공급사는 꼭 1개). 고치면 그래프 DB와 AI가 바로 바뀌어요.</p>
     <div class="relbar">단어로 좁히기 <select id="relSubj"><option value="">전체</option>${termOptions(subj)}</select></div>
     <h4>연결 관계문 <small class="muted">${links.length}개</small></h4>
-    <div class="stmts">${links.map(l => `<div class="stmt" data-s="${l.subject}" data-i="${l.index}">
-      <span class="w">${esc(nameOf(OM, l.subject))}</span>은(는)
-      <select class="lto" ${l.to.length > 1 ? 'multiple size="2"' : ''}>${l.to.includes('*') ? '<option value="*" selected>모든 단어</option>' : ''}${termOptions(l.to, true)}</select>와(과)
-      <input class="lrel" value="${esc(l.rel)}"> 관계다
-      <select class="lcard">${CARD_OPTS.map(([v, t]) => `<option value="${v}" ${v === l.card ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <span class="muted small">ERP 근거</span><input class="lvia" value="${esc(l.via)}">
-      <span class="cnt ${l.count ? '' : 'zero'}">${l.count ? l.count.toLocaleString() + '개 연결' : '데이터 없음'}</span>
-      <button class="lsave">저장</button><button class="ldel">삭제</button></div>`).join('')}
+    <div class="stmts">${links.map(l => { const sn = nameOf(OM, l.subject), tn = l.to.includes('*') ? '모든 단어' : l.to.map(x => nameOf(OM, x)).join('·');
+      return `<div class="stmt rel" data-s="${l.subject}" data-i="${l.index}" data-card="${esc(l.card)}">
+      <div class="sentence"><span class="w">${esc(sn)}</span>${josa(sn, '은(는)')}
+      <select class="lto" ${l.to.length > 1 ? 'multiple size="2"' : ''}>${l.to.includes('*') ? '<option value="*" selected>모든 단어</option>' : ''}${termOptions(l.to, true)}</select><span class="tail">${esc(sentenceTail(tn, l.phrase))}</span></div>
+      <div class="detail">
+        <label>동사<input class="lphrase" value="${esc(l.phrase)}" placeholder="예: 을(를) 경유한다"></label>
+        <label>${esc(sn)} 1개당 <select class="lcard">${CARD_OPTS.map(([v, t]) => `<option value="${v}" ${v === cardGroup(l.card) ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+        <label>관계 이름<input class="lrel" value="${esc(l.rel)}"></label>
+        <label>ERP 근거<input class="lvia" value="${esc(l.via)}"></label>
+        <span class="cnt ${l.count ? '' : 'zero'}">${l.count ? l.count.toLocaleString() + '개 연결' : '데이터 없음'}</span>
+        <button class="lsave">저장</button><button class="ldel">삭제</button></div></div>`; }).join('')}
     </div>
     <details class="addbox"><summary>＋ 연결 관계문 추가</summary>
-      <div class="stmt"><select id="nlS">${termOptions(subj)}</select>은(는) <select id="nlT">${termOptions('')}</select>와(과)
-      <input id="nlRel" placeholder="관계 이름 예: 납품"> 관계다 <select id="nlCard">${CARD_OPTS.map(([v, t]) => `<option value="${v}" ${v === 'N..1' ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      <span class="muted small">ERP 근거</span><select id="nlVia"></select><button class="primary" id="nlAdd">추가</button></div>
+      <div class="stmt"><select id="nlS">${termOptions(subj)}</select>은(는) <select id="nlT">${termOptions('')}</select>
+      <input id="nlPhrase" placeholder="동사 예: 을(를) 납품한다"> · 1개당 <select id="nlCard">${CARD_OPTS.map(([v, t]) => `<option value="${v}">${t}</option>`).join('')}</select>
+      · 관계 이름 <input id="nlRel" placeholder="예: 납품" style="width:90px"> · ERP 근거 <select id="nlVia"></select><button class="primary" id="nlAdd">추가</button></div>
       <p class="muted small">ERP 근거는 주어 단어의 ERP 화면에서 상대를 가리키는 칸이에요. 하위 표 칸은 '하위표.칸' 형식이에요.</p></details>
     <h4>속성 관계문 <small class="muted">${props.length}개</small></h4>
     <div class="stmts">${props.map(p => `<div class="stmt prop" data-s="${p.subject}" data-n="${esc(p.name)}">
-      <span class="w">${esc(nameOf(OM, p.subject))}</span>은(는) <input class="pname" value="${esc(p.name)}"> 속성을 가진다
+      <span class="w">${esc(nameOf(OM, p.subject))}</span>${josa(nameOf(OM, p.subject), '은(는)')} <input class="pname" value="${esc(p.name)}"> 속성을 가진다
       <span class="muted small">ERP 칸</span><input class="pfield" value="${esc(p.field)}">
       <span class="cnt ${p.filled ? '' : 'zero'}">${p.filled ? p.filled.toLocaleString() + '개 값' : '값 없음'}</span>
       <button class="psave">저장</button><button class="pdel">삭제</button></div>`).join('')}</div>
@@ -523,12 +543,19 @@ function renderRels(body) {
   };
   $('#nlS').onchange = () => fillFields('#nlS', '#nlVia', true); fillFields('#nlS', '#nlVia', true);
   $('#npS').onchange = () => fillFields('#npS', '#npField', false); fillFields('#npS', '#npField', false);
-  $('#nlAdd').onclick = () => ontoOp({ op: 'link.add', subject: $('#nlS').value, to: $('#nlT').value, rel: $('#nlRel').value.trim(), card: $('#nlCard').value, via: $('#nlVia').value });
+  $('#nlAdd').onclick = () => ontoOp({ op: 'link.add', subject: $('#nlS').value, to: $('#nlT').value, rel: $('#nlRel').value.trim() || $('#nlPhrase').value.replace(/^\S*\)\s*/, '').replace(/한다$|다$/, '').trim(),
+    phrase: $('#nlPhrase').value.trim(), card: $('#nlCard').value, via: $('#nlVia').value });
   $('#npAdd').onclick = () => ontoOp({ op: 'prop.add', subject: $('#npS').value, name: $('#npName').value.trim(), field: $('#npField').value });
+  $$('.stmt.rel').forEach(el => el.querySelector('.lto').addEventListener('change', () => {  // 대상이 바뀌면 조사도 다시
+    const tn = [...el.querySelector('.lto').selectedOptions].map(o => o.textContent).join('·');
+    el.querySelector('.tail').textContent = sentenceTail(tn, el.querySelector('.lphrase').value); }));
+  $$('.stmt.rel .lphrase').forEach(i => i.addEventListener('input', () => { const el = i.closest('.stmt');
+    const tn = [...el.querySelector('.lto').selectedOptions].map(o => o.textContent).join('·'); el.querySelector('.tail').textContent = sentenceTail(tn, i.value); }));
   $$('.stmt[data-i]').forEach(el => {
     const base = { subject: el.dataset.s, index: +el.dataset.i };
-    $('.lsave', el).onclick = () => ontoOp({ op: 'link.update', ...base, rel: $('.lrel', el).value.trim(), card: $('.lcard', el).value, via: $('.lvia', el).value.trim(),
-      to: [...$('.lto', el).selectedOptions].map(o => o.value) });
+    $('.lsave', el).onclick = () => { const cg = $('.lcard', el).value, orig = el.dataset.card;
+      ontoOp({ op: 'link.update', ...base, rel: $('.lrel', el).value.trim(), phrase: $('.lphrase', el).value.trim(), via: $('.lvia', el).value.trim(),
+        card: cg === cardGroup(orig) ? orig : cg, to: [...$('.lto', el).selectedOptions].map(o => o.value) }); };
     $('.ldel', el).onclick = () => confirm('이 관계문을 지울까요?') && ontoOp({ op: 'link.remove', ...base });
   });
   $$('.stmt.prop').forEach(el => {

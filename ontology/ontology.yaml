@@ -57,7 +57,7 @@ objects:
       최근 부적합 건수: supplier_ncr_count
       IQC 경계·이상치 연속: supplier_iqc_warning
     links:
-      - {rel: 경유, to: agency, via: custom_agency, card: "0..1"}
+      - {rel: 경유, to: agency, via: custom_agency, card: "0..1", phrase: 을(를) 경유한다}
 
   agency:
     name: 에이전시
@@ -99,7 +99,7 @@ objects:
       안전재고 충족 개월수: safety_stock_months
       미입고 발주 잔량: material_open_po_qty
     links:
-      - {rel: 공급받음, to: supplier, via: "Item Supplier.supplier", card: "N..M", props: {공급사 품명: supplier_part_no}}
+      - {rel: 공급받음, to: supplier, via: "Item Supplier.supplier", card: "N..M", props: {공급사 품명: supplier_part_no}, phrase: 에서 공급받는다}
 
   purchase:
     name: 구매 건
@@ -135,9 +135,9 @@ objects:
       납기 대비 지연(일): purchase_delay_days
       회신 납기 대비 지연(일): purchase_delay_vs_confirmed
     links:
-      - {rel: 주문, to: material, via: "Purchase Order Item.item_code", card: "1"}
-      - {rel: 발주처, to: supplier, via: supplier, card: "1"}
-      - {rel: 경유, to: agency, via: custom_agency, card: "0..1"}
+      - {rel: 주문, to: material, via: "Purchase Order Item.item_code", card: "1", phrase: 을(를) 주문한다}
+      - {rel: 발주처, to: supplier, via: supplier, card: "1", phrase: 에 발주한다}
+      - {rel: 경유, to: agency, via: custom_agency, card: "0..1", phrase: 을(를) 경유한다}
 
   receipt:
     name: 입고
@@ -161,9 +161,9 @@ objects:
     computed:
       입력 지연(일): entry_delay_days
     links:
-      - {rel: 이행, to: purchase, via: "Purchase Receipt Item.purchase_order", fallback: custom_po_ref, card: "N..1"}
-      - {rel: 생성, to: raw_lot, via: "Purchase Receipt Item.batch_no", card: "0..1"}
-      - {rel: 공급사, to: supplier, via: supplier, card: "1"}
+      - {rel: 이행, to: purchase, via: "Purchase Receipt Item.purchase_order", fallback: custom_po_ref, card: "N..1", phrase: 의 물건이 들어온 것이다}
+      - {rel: 생성, to: raw_lot, via: "Purchase Receipt Item.batch_no", card: "0..1", phrase: 을(를) 새로 만든다}
+      - {rel: 공급사, to: supplier, via: supplier, card: "1", phrase: 에서 들어왔다}
 
   raw_lot:
     name: 원재료 lot
@@ -184,8 +184,8 @@ objects:
       잔여 유효기간(일): days_to_expiry
       IQC 경계·이상치: iqc_flags
     links:
-      - {rel: 종류, to: material, via: item, card: "1"}
-      - {rel: 제조사, to: supplier, via: supplier, card: "1"}
+      - {rel: 종류, to: material, via: item, card: "1", phrase: 의 lot이다}
+      - {rel: 제조사, to: supplier, via: supplier, card: "1", phrase: 이(가) 만들었다}
 
   product:
     name: 완제품·레시피
@@ -202,7 +202,7 @@ objects:
       고형분(%): custom_solid_pct
       보관 조건: custom_storage_condition
     links:
-      - {rel: 레시피, to: material, via: "BOM Item.item_code", card: "N..M", props: {1000L당 투입량: qty}}
+      - {rel: 레시피, to: material, via: "BOM Item.item_code", card: "N..M", props: {1000L당 투입량: qty}, phrase: 을(를) 원료로 쓴다}
 
   work_order:
     name: 작업지시
@@ -227,12 +227,12 @@ objects:
       공정 기록: wo_operations                # Job Card + Time Log: 공정·설비·시작·종료·작업조
       자재 대기(일): wo_material_wait_days
     links:
-      - {rel: 제품, to: product, via: production_item, card: "N..1"}
-      - {rel: 투입, to: raw_lot, via: "Stock Entry Detail.batch_no", where: ["parent.stock_entry_type = Manufacture", "s_warehouse != ''"], card: "N..M", props: {수량: qty, 투입일: posting_date}}
-      - {rel: 공정 설비, to: equipment, via: "Job Card.workstation", card: "1..5", props: {공정: operation}}
-      - {rel: 필터 사용, to: filter_lot, via: "Job Card.custom_filter_lot", card: "N..1"}
-      - {rel: 생산, to: fg_lot, via: custom_fg_lot, card: "1"}
-      - {rel: 연결 수주, to: sales_order, via: custom_linked_so, card: "0..1"}
+      - {rel: 제품, to: product, via: production_item, card: "N..1", phrase: 을(를) 만든다}
+      - {rel: 투입, to: raw_lot, via: "Stock Entry Detail.batch_no", where: ["parent.stock_entry_type = Manufacture", "s_warehouse != ''"], card: "N..M", props: {수량: qty, 투입일: posting_date}, phrase: 을(를) 투입한다}
+      - {rel: 공정 설비, to: equipment, via: "Job Card.workstation", card: "1..5", props: {공정: operation}, phrase: 에서 공정을 거친다}
+      - {rel: 필터 사용, to: filter_lot, via: "Job Card.custom_filter_lot", card: "N..1", phrase: 을(를) 여과에 쓴다}
+      - {rel: 생산, to: fg_lot, via: custom_fg_lot, card: "1", phrase: 을(를) 생산한다}
+      - {rel: 연결 수주, to: sales_order, via: custom_linked_so, card: "0..1", phrase: 을(를) 위해 만든다}
 
   equipment:
     name: 설비
@@ -260,7 +260,7 @@ objects:
       중단 사유: stop_reason
       비고: remarks
     links:
-      - {rel: 대상, to: equipment, via: workstation, card: "N..1"}
+      - {rel: 대상, to: equipment, via: workstation, card: "N..1", phrase: 을(를) 멈춘다}
 
   filter_lot:
     name: 필터 lot
@@ -274,7 +274,7 @@ objects:
       사용 여과 라인: filter_lines
       거쳐 간 배치 수: filter_batch_count
     links:
-      - {rel: 장착, to: equipment, via: "Job Card.workstation", card: "N..M"}
+      - {rel: 장착, to: equipment, via: "Job Card.workstation", card: "N..M", phrase: 에 장착된다}
 
   fg_lot:
     name: 완제품 lot
@@ -290,7 +290,7 @@ objects:
       잔여 유효기간(일): days_to_expiry
       출하 가능 고객: fg_shippable_customers
     links:
-      - {rel: 종류, to: product, via: item, card: "N..1"}
+      - {rel: 종류, to: product, via: item, card: "N..1", phrase: 의 lot이다}
 
   inspection:
     name: 검사
@@ -315,8 +315,8 @@ objects:
       검사 소요(일): inspection_lead_days
       규격 대비 여유: measurement_margin
     links:
-      - {rel: 대상, to: [raw_lot, fg_lot], via: batch_no, card: "N..1"}
-      - {rel: 공급사, to: supplier, via: custom_supplier, card: "0..1"}
+      - {rel: 대상, to: [raw_lot, fg_lot], via: batch_no, card: "N..1", phrase: 을(를) 검사한다}
+      - {rel: 공급사, to: supplier, via: custom_supplier, card: "0..1", phrase: 의 원재료를 검사한다}
 
   ncr:
     name: 부적합·클레임
@@ -334,9 +334,9 @@ objects:
       종결일: custom_closed_on
       절차: procedure
     links:
-      - {rel: 대상, to: [raw_lot, fg_lot], via: custom_lot, card: "N..1"}
-      - {rel: 제기, to: customer, via: custom_customer, card: "0..1"}
-      - {rel: 품목, to: [material, product], via: custom_item, card: "0..1"}
+      - {rel: 대상, to: [raw_lot, fg_lot], via: custom_lot, card: "N..1", phrase: 에서 생긴 문제다}
+      - {rel: 제기, to: customer, via: custom_customer, card: "0..1", phrase: 이(가) 제기했다}
+      - {rel: 품목, to: [material, product], via: custom_item, card: "0..1", phrase: 에 관한 문제다}
 
   customer:
     name: 고객
@@ -362,10 +362,10 @@ objects:
       승인일: approval_date
       승인된 원재료@공급사: approved_materials
     links:
-      - {rel: 고객, to: customer, via: customer, card: "1"}
-      - {rel: 제품, to: product, via: item, card: "1"}
-      - {rel: 승인된 원재료, to: material, via: "approved_materials", parse: pair_material, card: "N"}
-      - {rel: 승인된 공급사, to: supplier, via: "approved_materials", parse: pair_supplier, card: "N"}
+      - {rel: 고객, to: customer, via: customer, card: "1", phrase: 이(가) 승인했다}
+      - {rel: 제품, to: product, via: item, card: "1", phrase: 에 대한 승인이다}
+      - {rel: 승인된 원재료, to: material, via: "approved_materials", parse: pair_material, card: "N", phrase: 을(를) 쓰도록 허락한다}
+      - {rel: 승인된 공급사, to: supplier, via: "approved_materials", parse: pair_supplier, card: "N", phrase: 의 원재료를 허락한다}
 
   sales_order:
     name: 수주
@@ -388,8 +388,8 @@ objects:
       미출하 수량: so_open_qty
       납기 대비 지연(일): so_delay_days
     links:
-      - {rel: 주문자, to: customer, via: customer, card: "N..1"}
-      - {rel: 제품, to: product, via: "Sales Order Item.item_code", card: "N..1"}
+      - {rel: 주문자, to: customer, via: customer, card: "N..1", phrase: 이(가) 주문했다}
+      - {rel: 제품, to: product, via: "Sales Order Item.item_code", card: "N..1", phrase: 을(를) 주문받았다}
 
   delivery:
     name: 출하
@@ -404,9 +404,9 @@ objects:
       출하 시 잔여 유효기간(일): "Delivery Note Item.custom_remaining_shelf_life_days"
       납기 준수: "Delivery Note Item.custom_on_time"
     links:
-      - {rel: 출하 lot, to: fg_lot, via: "Delivery Note Item.batch_no", card: "N..1"}
-      - {rel: 이행, to: sales_order, via: "Delivery Note Item.against_sales_order", card: "N..1"}
-      - {rel: 받는 곳, to: customer, via: customer, card: "N..1"}
+      - {rel: 출하 lot, to: fg_lot, via: "Delivery Note Item.batch_no", card: "N..1", phrase: 을(를) 내보낸다}
+      - {rel: 이행, to: sales_order, via: "Delivery Note Item.against_sales_order", card: "N..1", phrase: 을(를) 이행한다}
+      - {rel: 받는 곳, to: customer, via: customer, card: "N..1", phrase: 에 보낸다}
 
   plan:
     name: 계획
@@ -423,8 +423,8 @@ objects:
       상태: plan_status
       수량(병): qty_bottles
     links:
-      - {rel: 제품, to: product, via: item, card: "N..1"}
-      - {rel: 고객, to: customer, via: customer, card: "0..1"}
+      - {rel: 제품, to: product, via: item, card: "N..1", phrase: 의 계획이다}
+      - {rel: 고객, to: customer, via: customer, card: "0..1", phrase: 의 판매 예측이다}
 
   event:
     name: 결정·사건
@@ -442,7 +442,7 @@ objects:
     fact_types: [공급처·원료 변경, 공급 지연·중단, 품질 의심·가설, 고객 요청·변경, 결정과 이유]
     fact_format: "주어(객체) – 서술 – 값 – 시점 – 출처 – 확신도(명시/추정)"
     links:
-      - {rel: 언급, to: "*", via: "별칭 규칙(identity)으로 문서 속 이름을 객체에 연결", card: "N..M"}
+      - {rel: 언급, to: "*", via: "별칭 규칙(identity)으로 문서 속 이름을 객체에 연결", card: "N..M", phrase: 을(를) 언급한다}
 
 # ---------------------------------------------------------------------
 # IQC 검사 명세
@@ -451,9 +451,9 @@ iqc:
   items: [순도, 수분, 금속 26종, 분자량 편차, 분산도]
   metals: [Ag, Al, As, Au, B, Ba, Ca, Cd, Co, Cr, Cu, Fe, K, Li, Mg, Mn, Mo, Na, Ni, Pb, Sn, Ti, V, W, Zn, Zr]
   spec:
-    레진:   {순도_min: 99.0, 수분_max_ppm: 500, 금속_max_ppb: 10, 분자량편차_pct: 5, 분산도_max: 1.8, 금속_주기: "5 lot 중 1 lot"}
-    PAG:    {순도_min: 99.5, 수분_max_ppm: 300, 금속_max_ppb: 5,  금속_주기: "매 lot"}
-    솔벤트: {순도_min: 99.9, 수분_max_ppm: 200, 금속_max_ppb: 1,  금속_주기: "매 lot"}
+    레진: {순도_min: 99.0, 수분_max_ppm: 500, 금속_max_ppb: 10, 분자량편차_pct: 5, 분산도_max: 1.8, 금속_주기: "5 lot 중 1 lot"}
+    PAG: {순도_min: 99.5, 수분_max_ppm: 300, 금속_max_ppb: 5, 금속_주기: "매 lot"}
+    솔벤트: {순도_min: 99.9, 수분_max_ppm: 200, 금속_max_ppb: 1, 금속_주기: "매 lot"}
     첨가제: {순도_min: 99.0, 수분_max_ppm: 500, 금속_max_ppb: 10, 금속_주기: "매 lot"}
     포장재: IQC 대상 아님(수량·외관만 입고 확인)
   margin_warning_pct: 20        # 규격 대비 여유가 이보다 작으면 '합격·경계'
@@ -520,25 +520,25 @@ rules:
 # 함수 (AI가 부르는 질문 도구)
 # ---------------------------------------------------------------------
 functions:
-  find:            {in: "이름·코드·별칭", out: 후보 객체}
-  get:             {in: 객체, out: "속성, 연결 요약, 관련 사실·문서"}
-  trace_back:      {in: 완제품 lot, out: "작업지시, 공정 설비, 필터 lot, 투입 원재료 lot(공급사·입고일·IQC 측정값), 관련 문서"}
-  trace_forward:   {in: "원재료 lot 또는 조건", out: "들어간 완제품 lot, 현재 위치, 출하된 고객"}
-  common_factors:  {in: "완제품 lot 목록, 비교군", out: "원재료 lot·공급사·설비·필터 lot·측정값 경향의 차이"}
+  find: {in: "이름·코드·별칭", out: 후보 객체}
+  get: {in: 객체, out: "속성, 연결 요약, 관련 사실·문서"}
+  trace_back: {in: 완제품 lot, out: "작업지시, 공정 설비, 필터 lot, 투입 원재료 lot(공급사·입고일·IQC 측정값), 관련 문서"}
+  trace_forward: {in: "원재료 lot 또는 조건", out: "들어간 완제품 lot, 현재 위치, 출하된 고객"}
+  common_factors: {in: "완제품 lot 목록, 비교군", out: "원재료 lot·공급사·설비·필터 lot·측정값 경향의 차이"}
   measurement_trend: {in: "원재료, 공급사, 항목, 기간", out: "lot별 값 추이, 경계·이상치"}
-  shippable:       {in: "완제품 lot, 고객", out: "가능/불가와 사유"}
-  requal_needed:   {in: "원재료, 새 공급사", out: "대상 고객·제품, 기간"}
+  shippable: {in: "완제품 lot, 고객", out: "가능/불가와 사유"}
+  requal_needed: {in: "원재료, 새 공급사", out: "대상 고객·제품, 기간"}
   shortage_forecast: {in: "원재료, 기간", out: "재고, 미입고 발주, 계획 사용량, 부족 시점"}
   impacted_orders: {in: "원재료 지연 또는 설비 중단", out: "늦어질 작업지시와 수주"}
-  suspect_lots:    {in: 조건, out: "원재료 lot, 영향 완제품 lot, 재고·출하 위치"}
+  suspect_lots: {in: 조건, out: "원재료 lot, 영향 완제품 lot, 재고·출하 위치"}
 
 # ---------------------------------------------------------------------
 # 액션 (ERP에 반영, 사람 승인 필수)
 # ---------------------------------------------------------------------
 actions:
-  hold_fg_lot:     {what: "완제품 lot을 보류 창고(WH-40)로 옮기는 이동 전표 생성", approval: required}
+  hold_fg_lot: {what: "완제품 lot을 보류 창고(WH-40)로 옮기는 이동 전표 생성", approval: required}
   quarantine_raw_lot: {what: "원재료 lot을 보류 창고로 이동", approval: required}
-  draft_ncr:       {what: "NCR 초안 생성(대상 lot, 현상, 근거)", approval: required}
+  draft_ncr: {what: "NCR 초안 생성(대상 lot, 현상, 근거)", approval: required}
   policy: AI는 제안만 하고 사람이 승인해야 실행한다. 실행 결과는 결정·사건으로 기록한다.
 
 # ---------------------------------------------------------------------

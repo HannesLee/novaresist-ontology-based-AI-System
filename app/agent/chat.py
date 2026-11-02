@@ -12,6 +12,24 @@ ID = re.compile(r"\b(?:PO|MR|GR|QI|WO|SO|DN|NCR|AP|SE|SR)-\d\d-\d{3,4}(?::\S+)?|
                 r"\bBP-[A-Z]{2}\d\d|\bAG-0\d|\bCU-[A-D]\b|\b(?:RS|PG|SV|AD|PK)-[A-Z]?\d\d|\bPR-[A-Z]{1,2}\d\d|\bMF-[A-Z0-9]+")
 
 
+def _batchim(w):
+    c = str(w).strip()[-1:]
+    if "가" <= c <= "힣":
+        return (ord(c) - 0xAC00) % 28 != 0
+    return bool(re.match(r"[bcdfgjklmnpqrstvxz0-9]", c, re.I))
+
+
+def _josa(w, pair):
+    a, b = {"을(를)": ("을", "를"), "이(가)": ("이", "가"), "은(는)": ("은", "는"), "와(과)": ("과", "와")}.get(pair, (pair, pair))
+    return a if _batchim(w) else b
+
+
+def _tail(target, phrase):
+    """'공급사' + '을(를) 경유한다' → '[공급사]를 경유한다'"""
+    m = re.match(r"^(을\(를\)|이\(가\)|은\(는\)|와\(과\))(.*)$", phrase or "")
+    return f"[{target}]{_josa(target, m.group(1))}{m.group(2)}" if m else f"[{target}]{phrase}"
+
+
 def system_prompt(rt, mode, context=None):
     d = rt["schema"]
     base = f"""너는 '온트윈' — 가상 반도체 PR 소재사 노바레지스트(NovaResist)의 업무 판단 도우미다.
@@ -28,6 +46,15 @@ def system_prompt(rt, mode, context=None):
     if mode == "ontology":
         objs = "\n".join(f"- {o['name']} ({k}): {', '.join(o.get('aliases', []))}" for k, o in d["objects"].items())
         rules = "\n".join(f"- {r['id']}: {r['when']} → {r['then']} ({r['next']})" for r in d["rules"])
+        card = {"1": "꼭 1개", "N..1": "꼭 1개", "0..1": "없거나 1개"}
+        rels = []
+        for k, o in d["objects"].items():
+            for l in o.get("links") or []:
+                tos = l["to"] if isinstance(l["to"], list) else [l["to"]]
+                tn = "·".join(d["objects"][t]["name"] if t in d["objects"] else "모든 객체" for t in tos)
+                rels.append(f"- {o['name']}{_josa(o['name'], '은(는)')} {_tail(tn, l.get('phrase') or ('—' + l['rel'] + '→'))}  "
+                            f"(그래프 관계: {k}-[:{l['rel'].replace(' ', '_')}]->{'|'.join(tos)}, {o['name']} 1개당 {card.get(str(l.get('card')), '여러 개')})")
+        rels = "\n".join(rels)
         base += f"""
 너는 회사 온톨로지(객체·연결·규칙)를 도구로 쓴다. 온톨로지는 그래프 DB에 들어 있다.
 - 먼저 find/get으로 대상을 확정한다.
@@ -35,6 +62,9 @@ def system_prompt(rt, mode, context=None):
 - 함수로 안 되는 여러 단계 연결·집계는 graph_query(Cypher)로 직접 찾는다.
 객체 종류(이름: 현업 별칭)
 {objs}
+
+관계문 (온톨로지의 뼈대)
+{rels}
 
 규칙
 {rules}

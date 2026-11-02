@@ -67,19 +67,26 @@ def _poller():
 
 @app.on_event("startup")
 def _start():
-    s = sync()
-    if not s.store.objs("supplier"):
+    """ERP가 아직 안 켜져 있어도 서버는 뜬다. 준비는 뒤에서 계속 시도한다."""
+    threading.Thread(target=_prepare, daemon=True).start()
+
+
+def _prepare():
+    while True:
         try:
-            s.full(log=lambda *_: None)
+            s = sync()
+            if not s.store.objs("supplier"):
+                s.full(log=lambda *_: None)
+            g = rt().get("graph")
+            if g is not None and g.conn is None:  # 처음 켤 때 그래프 DB 만들기
+                s.rebuild(kind="그래프 DB 준비")
+            STATE["poll_error"] = None
+            break
         except Exception as e:
-            STATE["poll_error"] = f"첫 동기화 실패: {e}"[:300]
-    g = rt().get("graph")
-    if g is not None and g.conn is None:  # 그래프 DB가 아직 없으면(처음 켤 때) 지금 만든다
-        try:
-            s.rebuild(kind="그래프 DB 준비")
-        except Exception as e:
-            STATE["poll_error"] = f"그래프 DB 준비 실패: {e}"[:300]
-    threading.Thread(target=_poller, daemon=True).start()
+            STATE["sync"] = None
+            STATE["poll_error"] = f"ERP 연결 기다리는 중: {e}"[:300]
+            time.sleep(10)
+    _poller()
 
 
 # ---------------- 버전 (실행기가 옛 서버를 알아보는 데 쓴다) ----------------
@@ -125,10 +132,10 @@ async def webhook(request: Request):
 # ---------------- 동기화 상태 ----------------
 @app.get("/ow/api/sync")
 def sync_status():
-    s = sync()
-    o, l = s.store.counts()
-    logs = [dict(r) for r in s.store.db.execute("SELECT * FROM sync_log ORDER BY rowid DESC LIMIT 30")]
-    return {"objects": o, "links": sum(l.values()), "last": s.store.get_meta("last_sync"), "log": logs,
+    st = rt()["store"]  # ERP가 꺼져 있어도 상태는 보여 준다
+    o, l = st.counts()
+    logs = [dict(r) for r in st.db.execute("SELECT * FROM sync_log ORDER BY rowid DESC LIMIT 30")]
+    return {"objects": o, "links": sum(l.values()), "last": st.get_meta("last_sync"), "log": logs,
             "poll_sec": STATE["poll_sec"], "last_poll": STATE["last_poll"], "error": STATE["poll_error"],
             "erp": config.ERP_URL, "as_of": config.AS_OF or "오늘(실시간)",
             "graph": rt()["graph"].stats if rt().get("graph") else {}}

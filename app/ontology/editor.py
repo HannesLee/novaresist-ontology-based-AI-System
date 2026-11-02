@@ -198,6 +198,7 @@ def model(rt):
             tos = l["to"] if isinstance(l["to"], list) else [l["to"]]
             n = sum(v for (a, r, b), v in lc.items() if a == k and r == l["rel"] and (b in tos or "*" in tos))
             links.append({"subject": k, "index": i, "rel": l["rel"], "to": tos, "card": str(l.get("card", "")),
+                          "phrase": l.get("phrase", ""),
                           "card_text": CARDS.get(str(l.get("card", "")), str(l.get("card", ""))), "via": l.get("via", ""),
                           "count": n})
         for name, field in (o.get("properties") or {}).items():
@@ -273,10 +274,13 @@ def apply_op(text, op):
             if objs[k].get("links") is None:
                 objs[k]["links"] = []
             to = op["to"] if not isinstance(op["to"], list) or len(op["to"]) > 1 else op["to"][0]
-            objs[k]["links"].append({"rel": op["rel"], "to": to, "via": op["via"], "card": op.get("card", "N..1")})
+            nl = {"rel": op["rel"], "to": to, "via": op["via"], "card": op.get("card", "1")}
+            if op.get("phrase"):
+                nl["phrase"] = op["phrase"]
+            objs[k]["links"].append(nl)
         elif kind == "link.update":
             l = objs[k]["links"][int(op["index"])]
-            for f in ("rel", "via", "card"):
+            for f in ("rel", "via", "card", "phrase"):
                 if op.get(f):
                     l[f] = op[f]
             if op.get("to"):
