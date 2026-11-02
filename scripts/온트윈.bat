@@ -12,7 +12,12 @@ echo.
 tasklist /fi "imagename eq Docker Desktop.exe" | find /i "Docker Desktop.exe" >nul
 if errorlevel 1 (
   echo   [1/3] Docker Desktop 켜는 중...
-  start "" "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+  if exist "%ProgramFiles%\Docker\Docker\Docker Desktop.exe" (
+    start "" "%ProgramFiles%\Docker\Docker\Docker Desktop.exe"
+  ) else (
+    rem 사용자 폴더 설치 등 다른 위치: 시작 메뉴에 등록된 Docker Desktop을 찾아 켠다
+    powershell -NoProfile -Command "$a = Get-StartApps | Where-Object { $_.Name -like 'Docker Desktop*' } | Select-Object -First 1; if ($a) { Start-Process ('shell:AppsFolder\' + $a.AppID) } else { Write-Host '  Docker Desktop을 찾지 못했어요. 시작 메뉴에서 직접 켜 주세요.' }"
+  )
 )
 echo   [1/3] Docker 준비 기다리는 중...
 :waitdocker
