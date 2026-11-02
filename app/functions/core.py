@@ -45,15 +45,31 @@ WH_STATE = {"WH-10": "IQC 전", "WH-30A": "IQC 전", "WH-20": "합격", "WH-21":
 
 
 class Onto:
-    def __init__(self, store, schema_dict, erp=None, docs=None):
+    def __init__(self, store, schema_dict, erp=None, docs=None, graph=None):
         self.s = store
         self.d = schema_dict
         self.erp = erp
         self.docs = docs
+        self.g = graph
         self._cache = {}
 
     def clear(self):
         self._cache = {}
+
+    # ===================== 그래프 DB =====================
+    def gq(self, cypher, params=None, who="함수"):
+        """그래프 DB(Cypher) 질의. 실행 기록은 증거 화면에 남는다."""
+        if not self.g:
+            raise RuntimeError("그래프 DB 없음")
+        return self.g.query(cypher, params or {}, limit=5000, who=who)
+
+    def graph_query(self, cypher, params=None):
+        """AI가 직접 쓰는 읽기 전용 Cypher 질의 (최대 200행)."""
+        try:
+            rows = self.g.query(cypher, params or {}, limit=200, who="Claude")
+        except Exception as e:
+            return {"오류": str(e)[:600], "도움말": "라벨·관계 이름은 시스템 프롬프트의 그래프 스키마를 쓰세요. 공백은 _ 입니다."}
+        return {"행 수": len(rows), "결과": rows}
 
     # ===================== 기본 =====================
     def type_name(self, t):
@@ -301,23 +317,24 @@ class Onto:
         o = self.s.obj("fg_lot", lot)
         out = {"완제품 lot": lot, "제품": (self.s.links_from("fg_lot", lot, "종류") or [{}])[0].get("dst_id"),
                "생산일": o["props"].get("생산일"), "유효기간": o["props"].get("유효기간")}
-        wos = self.s.links_to("fg_lot", lot, "생산")
+        G = "trace_back"
+        wos = self.gq("MATCH (w:work_order)-[:생산]->(f:fg_lot {id:$lot}) RETURN w.id AS wo", {"lot": lot}, G)
         if not wos:
             out["작업지시"] = "없음(2025년 생산분 기초재고 이관 lot)"
         for w in wos[:1]:
-            wo = self.s.obj("work_order", w["src_id"])
+            wo = self.s.obj("work_order", w["wo"])
             out["작업지시"] = {"id": wo["id"], **{k: wo["props"].get(k) for k in
                                                 ("배치량(L)", "구분", "실제 시작일", "실제 종료일", "수율(%)", "배합 탱크")}}
-            out["공정 설비"] = [{"공정": l["props"].get("공정"), "설비": l["dst_id"]}
-                            for l in self.s.links_from("work_order", wo["id"], "공정 설비")]
-            out["필터 lot"] = [l["dst_id"] for l in self.s.links_from("work_order", wo["id"], "필터 사용")]
-            inputs = []
-            for l in self.s.links_from("work_order", wo["id"], "투입"):
-                rl = l["dst_id"]
-                inputs.append(self._raw_lot_card(rl, l["props"].get("수량")))
-            out["투입 원재료 lot"] = inputs
-        out["출하"] = [{"출하": l["src_id"], **self._delivery_brief(l["src_id"])}
-                     for l in self.s.links_to("fg_lot", lot, "출하 lot")]
+            out["공정 설비"] = self.gq("MATCH (w:work_order {id:$w})-[e:공정_설비]->(q:equipment) "
+                                    "RETURN e.공정 AS 공정, q.id AS 설비", {"w": wo["id"]}, G)
+            out["필터 lot"] = [r["id"] for r in self.gq(
+                "MATCH (w:work_order {id:$w})-[:필터_사용]->(x:filter_lot) RETURN x.id AS id", {"w": wo["id"]}, G)]
+            ins = self.gq("MATCH (w:work_order {id:$w})-[t:투입]->(r:raw_lot) RETURN r.id AS lot, t.수량 AS qty "
+                          "ORDER BY r.id", {"w": wo["id"]}, G)
+            out["투입 원재료 lot"] = [self._raw_lot_card(r["lot"], r["qty"]) for r in ins]
+        out["출하"] = self.gq("MATCH (d:delivery)-[:출하_lot]->(f:fg_lot {id:$lot}) OPTIONAL MATCH (d)-[:받는_곳]->(c:customer) "
+                            "RETURN d.id AS 출하, c.id AS 고객, d.출하일 AS 출하일, d.수량_병 AS `수량(병)` ORDER BY 출하일",
+                            {"lot": lot}, G)
         out["부적합·클레임"] = [self._ref("ncr", l["src_id"]) for l in self.s.links_to("fg_lot", lot, "대상")]
         oqc = [l["src_id"] for l in self.s.links_to("fg_lot", lot, "대상") if l["src_type"] == "inspection"]
         if oqc:
@@ -358,17 +375,20 @@ class Onto:
         lots = self._select_raw_lots(raw_lots, material, supplier, mfg_from, mfg_to)
         if isinstance(lots, dict):
             return lots
-        fg = {}
-        for rl in lots:
-            for l in self.s.links_to("raw_lot", rl, "투입"):
-                for p in self.s.links_from("work_order", l["src_id"], "생산"):
-                    fg.setdefault(p["dst_id"], {"작업지시": l["src_id"], "투입 원재료 lot": []})["투입 원재료 lot"].append(rl)
+        G = "trace_forward"
+        hits = self.gq("MATCH (r:raw_lot)<-[:투입]-(w:work_order)-[:생산]->(f:fg_lot) WHERE r.id IN $lots "
+                       "OPTIONAL MATCH (f)-[:종류]->(p:product) "
+                       "RETURN f.id AS fg, w.id AS wo, p.id AS prod, collect(DISTINCT r.id) AS raws ORDER BY fg",
+                       {"lots": lots}, G) if lots else []
+        ships = self.gq("MATCH (d:delivery)-[:출하_lot]->(f:fg_lot) WHERE f.id IN $fgs "
+                        "OPTIONAL MATCH (d)-[:받는_곳]->(c:customer) "
+                        "RETURN f.id AS fg, d.id AS 출하, c.id AS 고객, d.출하일 AS 출하일, d.수량_병 AS `수량(병)` ORDER BY 출하일",
+                        {"fgs": [h["fg"] for h in hits]}, G) if hits else []
         rows = []
-        for lot, info in sorted(fg.items()):
-            prod = (self.s.links_from("fg_lot", lot, "종류") or [{}])[0].get("dst_id")
-            ships = [self._delivery_brief(l["src_id"]) | {"출하": l["src_id"]} for l in self.s.links_to("fg_lot", lot, "출하 lot")]
-            stock = self.lot_stock(lot, prod)
-            rows.append({"완제품 lot": lot, "제품": prod, **info, "현재 재고": stock, "출하": ships})
+        for h in hits:
+            rows.append({"완제품 lot": h["fg"], "제품": h["prod"], "작업지시": h["wo"], "투입 원재료 lot": h["raws"],
+                         "현재 재고": self.lot_stock(h["fg"], h["prod"]),
+                         "출하": [{k: v for k, v in x.items() if k != "fg"} for x in ships if x["fg"] == h["fg"]]})
         customers = Counter(s["고객"] for r in rows for s in r["출하"])
         return {"대상 원재료 lot": lots, "영향 완제품 lot 수": len(rows),
                 "재고 남은 lot": [r["완제품 lot"] for r in rows if r["현재 재고"]],

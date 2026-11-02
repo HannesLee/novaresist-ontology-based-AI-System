@@ -16,9 +16,11 @@ _lock = threading.Lock()
 
 
 class Sync:
-    def __init__(self, store=None, erp=None, onto_path=None):
+    def __init__(self, store=None, erp=None, onto_path=None, graph=None, docs=None):
         self.erp = erp or config.erp()
         self.store = store or Store(config.DB_FILE)
+        self.graph = graph
+        self.docs = docs
         self.onto_path = onto_path or config.ONTOLOGY_FILE
         self.reload_schema()
 
@@ -81,7 +83,17 @@ class Sync:
             raw = Raw({dt: self.store.raw_rows(dt) for dt, _ in self.fetch})
             eng = Engine(self.schema, raw)
             objects, links, aliases = eng.build()
+            if self.docs is not None:  # ERP 밖 문서 → 결정·사건 객체와 '언급' 연결
+                eo, el, ea = self.docs.events(objects, aliases)
+                objects += eo
+                links += el
+                aliases += ea
             changed, removed = self.store.replace_graph(objects, links, aliases)
+            if self.graph is not None:
+                try:
+                    self.graph.load(self.schema.d, objects, links)
+                except Exception as e:  # 그래프 DB 실패가 동기화를 막지 않게
+                    self.store.log("graph_error", detail=str(e)[:300])
             info = ", ".join(f"{t}:{i}" for t, i in changed[:20])
             self.store.log(kind, doctype, name, len(changed) + len(removed),
                            detail or (info + (" …" if len(changed) > 20 else "")))

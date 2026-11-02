@@ -4,6 +4,7 @@
 - mentions(): 객체 id·별칭이 나오는 문서를 찾는다 → 객체에 문서를 붙이는 연결.
 """
 import csv
+import hashlib
 import io
 import pathlib
 import re
@@ -69,3 +70,41 @@ class Docs:
             if d["path"] == path:
                 return dict(self.brief(d), 본문=d["text"])
         return {"오류": f"문서 '{path}' 없음(또는 기준일 이후 문서)"}
+
+
+    # ---------------- 문서 → 결정·사건 객체 + 언급 연결 ----------------
+    def events(self, objects, aliases, skip_types=("plan", "event")):
+        """문서마다 event 객체 하나. 문서에 나오는 객체 id·이름으로 '언급' 연결을 만든다."""
+        index = {}
+        for t, i, a in aliases:
+            if t in skip_types:
+                continue
+            a = str(a).strip()
+            if len(a) < 3 and not re.fullmatch(r"[A-D]사", a):
+                continue
+            index.setdefault(a, set()).add((t, i))
+        # 여러 객체에 걸리는 이름(예: 출하 문서번호 → 출하 줄 여러 개)은 줄 단위 객체를 빼고 남긴다
+        index = {a: v for a, v in index.items() if len(v) <= 6}
+        names = sorted(index, key=len, reverse=True)
+        objs, links, als = [], [], []
+        for d in self.all():
+            eid = d["path"]
+            kind = {"메일": "메일", "회의록": "회의록", "결정_기록": "결정", "SOP": "SOP", "규칙": "규칙"}.get(d["종류"], d["종류"])
+            props = {"날짜": d["날짜"], "종류": kind, "출처": d["path"], "내용": d["text"][:1200]}
+            if d["종류"] == "결정_기록":
+                for part in d["text"].split(" / "):
+                    if ": " in part:
+                        k, v = part.split(": ", 1)
+                        if k in ("결정", "이유", "결정자", "관련 자료"):
+                            props[k] = v
+            objs.append({"type": "event", "id": eid, "title": d["제목"], "props": props, "src_doctype": "문서",
+                         "src_name": d["path"], "status": "", "hash": hashlib.md5((d["제목"] + d["날짜"] + d["text"]).encode()).hexdigest()})
+            als.append(("event", eid, d["제목"]))
+            text = d["text"]
+            hit = set()
+            for a in names:
+                if a in text:
+                    hit |= index[a]
+            for t, i in sorted(hit):
+                links.append({"src_type": "event", "src_id": eid, "rel": "언급", "dst_type": t, "dst_id": i, "props": {}})
+        return objs, links, als

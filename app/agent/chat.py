@@ -28,12 +28,18 @@ def system_prompt(rt, mode, context=None):
         objs = "\n".join(f"- {o['name']} ({k}): {', '.join(o.get('aliases', []))}" for k, o in d["objects"].items())
         rules = "\n".join(f"- {r['id']}: {r['when']} → {r['then']} ({r['next']})" for r in d["rules"])
         base += f"""
-너는 회사 온톨로지(객체·연결·규칙)를 도구로 쓴다. 먼저 find/get으로 대상을 확정하고, 추적·판정 함수로 답한다.
+너는 회사 온톨로지(객체·연결·규칙)를 도구로 쓴다. 온톨로지는 그래프 DB에 들어 있다.
+- 먼저 find/get으로 대상을 확정한다.
+- 정해진 업무 판단(추적, 출하 판정, 재승인, 부족 예측)은 함수를 쓴다(함수도 내부에서 그래프 DB를 질의한다).
+- 함수로 안 되는 여러 단계 연결·집계는 graph_query(Cypher)로 직접 찾는다.
 객체 종류(이름: 현업 별칭)
 {objs}
 
 규칙
 {rules}
+
+그래프 스키마 (그래프 DB, Cypher)
+{rt["graph"].schema_text if rt.get("graph") else "(없음)"}
 """
     else:
         base += """
@@ -69,13 +75,16 @@ def ask(rt, question, mode="ontology", history=None, context=None, docs=True, mo
             if b.type != "tool_use":
                 continue
             t1 = time.time()
+            g = rt.get("graph")
+            mark = len(g.log) if g else 0
             try:
                 out = T.run(rt, mode, b.name, b.input)
             except Exception as e:
                 out = {"오류": str(e)[:500]}
             txt = T.dumps(out)
             seen_text.append(txt)
-            step = {"tool": b.name, "input": b.input, "output": txt[:3000], "ms": int((time.time() - t1) * 1000)}
+            step = {"tool": b.name, "input": b.input, "output": txt[:3000], "ms": int((time.time() - t1) * 1000),
+                    "cypher": [x["cypher"] for x in (g.log[mark:] if g else [])][:12]}
             steps.append(step)
             if on_step:
                 on_step(step)

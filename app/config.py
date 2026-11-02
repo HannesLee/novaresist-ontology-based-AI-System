@@ -24,6 +24,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-5-5")
 ONTOLOGY_FILE = pathlib.Path(os.environ.get("ONTOLOGY_FILE", ROOT / "ontology" / "ontology.yaml"))
 DB_FILE = pathlib.Path(os.environ.get("ONTWIN_DB", ROOT / "data" / "ontwin.db"))
+GRAPH_DIR = pathlib.Path(os.environ.get("ONTWIN_GRAPH", ROOT / "data" / "graph"))
 DOCS_DIR = pathlib.Path(os.environ.get("ONTWIN_DOCS", ROOT / "erp_seed" / "data" / "docs"))
 AS_OF = os.environ.get("ONTWIN_AS_OF", "")  # 평가 때만 기준일 고정 (비우면 오늘)
 

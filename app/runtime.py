@@ -3,6 +3,7 @@ from app import config
 from app.functions.core import Onto, today
 from app.ontology import schema as sch
 from app.ontology.docs import Docs
+from app.ontology.graphdb import GraphDB
 from app.ontology.store import Store
 
 _rt = {}
@@ -14,12 +15,13 @@ def get():
         erp = config.erp()
         d = sch.load(config.ONTOLOGY_FILE)
         docs = Docs(config.DOCS_DIR, store, today)
-        _rt.update(store=store, erp=erp, schema=d, docs=docs, onto=Onto(store, d, erp, docs))
+        graph = GraphDB(config.GRAPH_DIR)
+        _rt.update(store=store, erp=erp, schema=d, docs=docs, graph=graph, onto=Onto(store, d, erp, docs, graph))
     return _rt
 
 
 def reload_schema():
     rt = get()
     rt["schema"] = sch.load(config.ONTOLOGY_FILE)
-    rt["onto"] = Onto(rt["store"], rt["schema"], rt["erp"], rt["docs"])
+    rt["onto"] = Onto(rt["store"], rt["schema"], rt["erp"], rt["docs"], rt["graph"])
     return rt

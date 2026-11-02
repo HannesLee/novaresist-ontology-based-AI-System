@@ -9,6 +9,11 @@ S = {"type": "string"}
 SA = {"type": "array", "items": {"type": "string"}}
 
 ONTO_TOOLS = [
+    {"name": "graph_query", "description": "그래프 DB(온톨로지 그래프)에 읽기 전용 Cypher 질의. 여러 단계 연결을 한 번에 따라갈 때 쓴다. "
+                                         "라벨·관계·열 이름은 시스템 프롬프트의 그래프 스키마 그대로(공백은 _). 예: "
+                                         "MATCH (s:supplier)<-[:제조사]-(r:raw_lot)<-[:대상]-(:inspection)-[:측정값]->(m:measurement) "
+                                         "WHERE m.항목='금속 Zn' RETURN s.이름, r.id, m.값 ORDER BY m.값 DESC LIMIT 10",
+     "input_schema": {"type": "object", "properties": {"cypher": S, "params": {"type": "object"}}, "required": ["cypher"]}},
     {"name": "find", "description": "이름·코드·별칭(공급사 품명, 생산 약칭, 고객 품번, 줄임 이름 포함)으로 객체를 찾는다.",
      "input_schema": {"type": "object", "properties": {"text": S, "type": {"type": "string", "description": "객체 종류(선택): 공급사, 원재료, 원재료 lot, 완제품 lot, 구매 건, 수주 …"}},
                       "required": ["text"]}},

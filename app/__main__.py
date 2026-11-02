@@ -22,8 +22,11 @@ def main():
         print(f"정의 파일: 객체 {len(s.objects)}종, 읽을 ERP 화면 {len(s.fetch_list())}개")
         print("문제 없음" if not probs else "문제:\n  " + "\n  ".join(probs))
     elif cmd == "sync":
+        from app import runtime
         from app.ontology.sync import Sync
-        Sync().full()
+        r = runtime.get()
+        Sync(store=r["store"], erp=r["erp"], graph=r["graph"], docs=r["docs"]).full()
+        print("그래프 DB:", r["graph"].stats)
         _stats()
     elif cmd == "poll":
         from app.ontology.sync import Sync

@@ -33,7 +33,7 @@ def rt():
 def sync():
     if STATE["sync"] is None:
         r = rt()
-        STATE["sync"] = Sync(store=r["store"], erp=r["erp"])
+        STATE["sync"] = Sync(store=r["store"], erp=r["erp"], graph=r["graph"], docs=r["docs"])
     return STATE["sync"]
 
 
