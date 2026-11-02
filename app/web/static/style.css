@@ -206,3 +206,5 @@ pre.cy { background: #0f1b2d; color: #cfe1ff; padding: 6px 8px; border-radius: 6
 .cnt { font-size: 11.5px; background: #e8f5ee; color: var(--green); padding: 2px 7px; border-radius: 99px; } .cnt.zero { background: #fdf1e2; color: var(--orange); }
 .pp { display: inline-flex; gap: 4px; align-items: center; margin: 2px 6px 2px 0; }
 [hidden] { display: none !important; }
+.rt-head { flex-wrap: wrap; } .rt-head .exp button, .meta .exp button { padding: 2px 7px; font-size: 11.5px; white-space: nowrap; }
+.side-chat .meta .exp { margin-left: 0; flex-wrap: wrap; }

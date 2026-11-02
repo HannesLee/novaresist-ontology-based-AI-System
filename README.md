@@ -3,7 +3,7 @@
 > 노바레지스트(가상 반도체 PR 소재사)에 적용한 ERP + 온톨로지 + Claude 업무 판단 도우미
 
 **반도체 소재·스페셜티 화학 중소기업의 품질·SCM 판단을 돕는 AI 에이전트**
-ERPNext(실제 ERP) + 온톨로지(회사 지도) + Claude API(대화형 AI)
+ERPNext(실제 ERP) + 온톨로지(회사 지도, 그래프 DB) + Claude API(대화형 AI)
 
 > 🚧 개발 중 (2026-11). 시연 영상과 실행 방법은 완성되면 이곳에 올라갑니다.
 
@@ -65,6 +65,9 @@ flowchart LR
 - [x] 함수 층(추적·판정 11개, 계산 속성 30개), Claude 챗봇, 웹 화면
 - [x] 온톨로지 편집(버전 이력·되돌리기)과 그래프 보기(설계도·데이터 그래프)
 - [x] ERP 화면 위 챗봇, 작업대(카드 → 표·차트), 엑셀·파워포인트·워드 내보내기
+- [x] 실제 그래프 DB(LadybugDB, Cypher) — 온톨로지 정의에서 스키마 자동 생성, 노드 12,447·관계 21,166, Claude가 Cypher로 직접 조회 → [증거 문서](docs/evidence.md)
+- [x] 쉬운 온톨로지 편집(단어 정의 / 관계문 / 규칙문) → 그래프 DB·AI에 즉시 반영
+- [x] 기초 정보 화면(ERP 2화면 + 오른쪽 챗봇, 표 만들기 → 엑셀·PPT·워드), 로고 시작 화면
 - [ ] 일반 Claude vs 본 시스템 비교 평가·시연 영상
 
 ## 실행 방법 (Windows + WSL Ubuntu)
@@ -85,6 +88,8 @@ python3 -m app serve                     # http://localhost:8501/ow/
 | --- | --- |
 | `localhost:8501/ow/` | 온트윈: 챗봇, 작업대, 비교, 그래프, 온톨로지 편집, 동기화 |
 | `localhost:8501/app` | ERPNext 화면 + 오른쪽 아래 온트윈 챗봇(지금 보는 문서를 알고 답함) |
+
+바탕화면 바로가기(로고 시작 화면): `powershell.exe -ExecutionPolicy Bypass -File "$(wslpath -w scripts/install_windows.ps1)"` 를 한 번 실행하면 바탕화면에 **온트윈** 아이콘이 생깁니다.
 
 ## 만든 사람
 
