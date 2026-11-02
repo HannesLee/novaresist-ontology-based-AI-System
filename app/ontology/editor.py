@@ -172,3 +172,130 @@ def apply_patch(text, path, value):
     buf = io.StringIO()
     y.dump(data, buf)
     return buf.getvalue()
+
+
+# ===================== 쉬운 편집: 단어 정의 / 관계문 =====================
+CARDS = {"1": "하나", "0..1": "없거나 하나", "N..1": "여럿이 하나에", "N..M": "여럿과 여럿", "N": "여럿", "1..5": "1~5개"}
+
+
+def model(rt):
+    """화면용 온톨로지 모델: 단어(객체) 정의와 관계문(연결·속성)."""
+    d = yaml.safe_load(config.ONTOLOGY_FILE.read_text(encoding="utf-8"))
+    store = rt["store"]
+    oc = dict(store.db.execute("SELECT type, COUNT(*) FROM objects GROUP BY type").fetchall())
+    lc = {}
+    for st, rel, dt_, n in store.db.execute("SELECT src_type, rel, dst_type, COUNT(*) FROM links GROUP BY 1,2,3"):
+        lc[(st, rel, dt_)] = n
+    terms, links, props = [], [], []
+    for k, o in d["objects"].items():
+        src = o.get("source", {})
+        terms.append({"key": k, "name": o.get("name", k), "aliases": o.get("aliases") or [],
+                      "description": o.get("description", ""), "count": oc.get(k, 0),
+                      "source": src.get("doctype") or ", ".join(src.get("doctypes", [])) or src.get("derived_from")
+                      or ("문서: " + ", ".join(src.get("documents", [])) if src.get("documents") else ""),
+                      "filter": src.get("filter", ""), "computed": list((o.get("computed") or {}).keys())})
+        for i, l in enumerate(o.get("links") or []):
+            tos = l["to"] if isinstance(l["to"], list) else [l["to"]]
+            n = sum(v for (a, r, b), v in lc.items() if a == k and r == l["rel"] and (b in tos or "*" in tos))
+            links.append({"subject": k, "index": i, "rel": l["rel"], "to": tos, "card": str(l.get("card", "")),
+                          "card_text": CARDS.get(str(l.get("card", "")), str(l.get("card", ""))), "via": l.get("via", ""),
+                          "count": n})
+        for name, field in (o.get("properties") or {}).items():
+            filled = 0
+            props.append({"subject": k, "name": name, "field": field})
+    vals = {}
+    for t, p in store.db.execute("SELECT type, props FROM objects"):
+        try:
+            for k2, v in json.loads(p).items():
+                if v not in (None, "", []):
+                    vals[(t, k2)] = vals.get((t, k2), 0) + 1
+        except Exception:
+            pass
+    for p in props:
+        p["filled"] = vals.get((p["subject"], p["name"]), 0)
+    rules = [{"id": r["id"], "when": r["when"], "then": r["then"], "next": r["next"], "params": r.get("params") or {}}
+             for r in d.get("rules", [])]
+    return {"version": str(d["meta"]["version"]), "terms": terms, "links": links, "props": props, "rules": rules}
+
+
+def apply_op(text, op):
+    """편집 동작 하나를 YAML에 적용한 새 문자열. 실패하면 {'ok': False, 'problems': [...]}."""
+    y = _ry()
+    data = y.load(text)
+    objs = data["objects"]
+    kind = op.get("op")
+    k = op.get("key") or op.get("subject")
+    try:
+        if kind == "term.update":
+            o = objs[k]
+            for f in ("name", "description"):
+                if f in op:
+                    o[f] = op[f]
+            if "aliases" in op:
+                o["aliases"] = [a for a in op["aliases"] if a]
+        elif kind == "term.add":
+            key = op["key"]
+            if key in objs:
+                return {"ok": False, "problems": [f"'{key}'는 이미 있는 id입니다"]}
+            src = {"doctype": op["doctype"]}
+            if op.get("filter"):
+                src["filter"] = op["filter"]
+            objs[key] = {"name": op["name"], "aliases": op.get("aliases") or [], "description": op.get("description", ""),
+                         "source": src, "key": "name", "title": op.get("title") or "name", "properties": {}, "links": []}
+        elif kind == "term.remove":
+            if k not in objs:
+                return {"ok": False, "problems": [f"'{k}' 없음"]}
+            used = [f"{a}.{l['rel']}" for a, o in objs.items() if a != k for l in (o.get("links") or [])
+                    if k in (l["to"] if isinstance(l["to"], list) else [l["to"]])]
+            if used and not op.get("force"):
+                return {"ok": False, "problems": [f"다른 관계문이 이 단어를 씁니다: {', '.join(used)}. 그 관계문을 먼저 지우거나 함께 지우기를 고르세요."]}
+            for a, o in objs.items():
+                if o.get("links"):
+                    o["links"] = [l for l in o["links"] if k not in (l["to"] if isinstance(l["to"], list) else [l["to"]])]
+            del objs[k]
+        elif kind == "prop.add":
+            objs[k].setdefault("properties", {})
+            if objs[k]["properties"] is None:
+                objs[k]["properties"] = {}
+            objs[k]["properties"][op["name"]] = op["field"]
+        elif kind == "prop.update":
+            props = objs[k]["properties"]
+            items = list(props.items())
+            props.clear()
+            for n, f in items:
+                if n == op["name"]:
+                    props[op.get("new_name") or n] = op.get("field") or f
+                else:
+                    props[n] = f
+        elif kind == "prop.remove":
+            del objs[k]["properties"][op["name"]]
+        elif kind == "link.add":
+            if objs[k].get("links") is None:
+                objs[k]["links"] = []
+            to = op["to"] if not isinstance(op["to"], list) or len(op["to"]) > 1 else op["to"][0]
+            objs[k]["links"].append({"rel": op["rel"], "to": to, "via": op["via"], "card": op.get("card", "N..1")})
+        elif kind == "link.update":
+            l = objs[k]["links"][int(op["index"])]
+            for f in ("rel", "via", "card"):
+                if op.get(f):
+                    l[f] = op[f]
+            if op.get("to"):
+                l["to"] = op["to"] if not isinstance(op["to"], list) or len(op["to"]) > 1 else op["to"][0]
+        elif kind == "link.remove":
+            del objs[k]["links"][int(op["index"])]
+        else:
+            return {"ok": False, "problems": [f"모르는 편집: {kind}"]}
+    except (KeyError, IndexError, TypeError) as e:
+        return {"ok": False, "problems": [f"편집할 곳을 찾지 못했습니다: {e}"]}
+    buf = io.StringIO()
+    y.dump(data, buf)
+    return buf.getvalue()
+
+
+def describe_op(op, m=None):
+    k = op.get("key") or op.get("subject")
+    return {"term.update": f"단어 '{k}' 정의 수정", "term.add": f"단어 '{op.get('name')}' 추가",
+            "term.remove": f"단어 '{k}' 삭제", "prop.add": f"{k}에 속성 '{op.get('name')}' 추가",
+            "prop.update": f"{k} 속성 '{op.get('name')}' 수정", "prop.remove": f"{k} 속성 '{op.get('name')}' 삭제",
+            "link.add": f"관계문 추가: {k} -{op.get('rel')}→ {op.get('to')}", "link.update": f"{k} 관계문 수정",
+            "link.remove": f"{k} 관계문 삭제"}.get(op.get("op"), op.get("op"))

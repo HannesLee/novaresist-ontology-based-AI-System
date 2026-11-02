@@ -23,6 +23,7 @@ def system_prompt(rt, mode, context=None):
 - 판단에는 근거 문서번호·객체 id를 붙인다.
 - 답 형식: **결론** (한두 문장) → **근거** (항목별, id 포함) → **확인 필요·다음 행동**
 - 한국어, 짧고 정확하게. 표가 낫다면 마크다운 표.
+- 사용자가 표·자료·보고서·엑셀·PPT를 만들어 달라고 하면 make_table 도구로 만든다(화면에 내보내기 버튼이 붙는다).
 """
     if mode == "ontology":
         objs = "\n".join(f"- {o['name']} ({k}): {', '.join(o.get('aliases', []))}" for k, o in d["objects"].items())
@@ -60,6 +61,7 @@ def ask(rt, question, mode="ontology", history=None, context=None, docs=True, mo
     t0 = time.time()
     rt["onto"].clear()
     answer = ""
+    tables = []
     for _ in range(max_rounds):
         r = client.messages.create(model=model or config.CLAUDE_MODEL, max_tokens=4000, system=sys,
                                    tools=tools, messages=msgs)
@@ -88,6 +90,8 @@ def ask(rt, question, mode="ontology", history=None, context=None, docs=True, mo
             steps.append(step)
             if on_step:
                 on_step(step)
+            if b.name == "make_table" and isinstance(out, dict) and out.get("card_id"):
+                tables.append(out["card_id"])
             results.append({"type": "tool_result", "tool_use_id": b.id, "content": txt})
         msgs.append({"role": "user", "content": results})
     else:
@@ -95,6 +99,6 @@ def ask(rt, question, mode="ontology", history=None, context=None, docs=True, mo
     found = set(ID.findall("\n".join(seen_text)))
     evidence = sorted({x for x in ID.findall(answer) if x in found})
     unverified = sorted({x for x in ID.findall(answer) if x not in found})
-    return {"answer": answer, "steps": steps, "evidence": evidence, "unverified": unverified, "usage": usage,
+    return {"answer": answer, "steps": steps, "tables": tables, "onto_version": str(rt["schema"]["meta"]["version"]), "evidence": evidence, "unverified": unverified, "usage": usage,
             "seconds": round(time.time() - t0, 1), "mode": mode,
             "history": msgs[:1 + len(history or [])] + [{"role": "assistant", "content": answer}]}

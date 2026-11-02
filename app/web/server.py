@@ -96,7 +96,8 @@ def sync_status():
     logs = [dict(r) for r in s.store.db.execute("SELECT * FROM sync_log ORDER BY rowid DESC LIMIT 30")]
     return {"objects": o, "links": sum(l.values()), "last": s.store.get_meta("last_sync"), "log": logs,
             "poll_sec": STATE["poll_sec"], "last_poll": STATE["last_poll"], "error": STATE["poll_error"],
-            "erp": config.ERP_URL, "as_of": config.AS_OF or "오늘(실시간)"}
+            "erp": config.ERP_URL, "as_of": config.AS_OF or "오늘(실시간)",
+            "graph": rt()["graph"].stats if rt().get("graph") else {}}
 
 
 @app.post("/ow/api/sync/full")
@@ -136,16 +137,38 @@ def api_objects(type: str, q: str = "", limit: int = 200):
 
 @app.get("/ow/api/graph/schema")
 def graph_schema():
+    """설계도: 정의 파일의 객체·관계문 + 실제 데이터 수. 정의만 있고 데이터가 없는 관계문도 보여 준다."""
     d = rt()["schema"]
-    o, _ = rt()["store"].counts()
+    st = rt()["store"]
+    o, _ = st.counts()
+    lc = {}
+    for a, r, b, n in st.db.execute("SELECT src_type, rel, dst_type, COUNT(*) FROM links GROUP BY 1,2,3"):
+        lc[(a, r, b)] = n
     nodes = [{"id": k, "label": v["name"], "count": o.get(k, 0)} for k, v in d["objects"].items()]
-    edges = []
+    edges, seen = [], set()
     for k, v in d["objects"].items():
         for l in v.get("links") or []:
-            for t in (l["to"] if isinstance(l["to"], list) else [l["to"]]):
-                if t != "*":
-                    edges.append({"source": k, "target": t, "label": l["rel"], "card": l.get("card", "")})
-    return {"nodes": nodes, "edges": edges}
+            tos = l["to"] if isinstance(l["to"], list) else [l["to"]]
+            if "*" in tos:  # '모든 객체' 관계문: 실제로 이어진 상대만 그린다
+                tos = sorted({b for (a, r, b) in lc if a == k and r == l["rel"]})
+            for t in tos:
+                if t in d["objects"]:
+                    seen.add((k, l["rel"], t))
+                    edges.append({"source": k, "target": t, "label": l["rel"], "card": l.get("card", ""),
+                                  "count": lc.get((k, l["rel"], t), 0)})
+    if any(v.get("measurements") for v in d["objects"].values()):
+        g = rt().get("graph")
+        n = 0
+        try:
+            n = g.scalar("MATCH (m:measurement) RETURN count(m)") if g else 0
+        except Exception:
+            pass
+        nodes.append({"id": "measurement", "label": "측정값", "count": int(n or 0), "derived": True})
+        for k, v in d["objects"].items():
+            if v.get("measurements"):
+                edges.append({"source": k, "target": "measurement", "label": "측정값", "card": "N", "count": int(n or 0)})
+    gs = rt().get("graph").stats if rt().get("graph") else {}
+    return {"nodes": nodes, "edges": edges, "version": str(d["meta"]["version"]), "graph": gs}
 
 
 @app.get("/ow/api/graph/node")
@@ -224,6 +247,67 @@ def api_chat_stream(body: dict = Body(...)):
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+@app.get("/ow/api/chat/prompt")
+def chat_prompt(mode: str = "ontology"):
+    """증거: Claude API에 실제로 보내는 시스템 프롬프트(온톨로지·규칙·그래프 스키마 포함)와 도구 목록."""
+    from app.agent import tools as T
+    tools = T.ONTO_TOOLS if mode == "ontology" else T.ERP_TOOLS
+    return {"system": chat.system_prompt(rt(), mode), "tools": [{"name": t["name"], "description": t["description"]} for t in tools],
+            "model": config.CLAUDE_MODEL, "onto_version": str(rt()["schema"]["meta"]["version"]),
+            "graph": rt()["graph"].stats if rt().get("graph") else {}}
+
+
+@app.post("/ow/api/graph/query")
+def graph_query_api(body: dict = Body(...)):
+    """그래프 질의 화면: 사람이 직접 Cypher(읽기 전용)."""
+    g = rt().get("graph")
+    try:
+        rows = g.query(body["cypher"], body.get("params") or {}, limit=500, who="사람")
+    except Exception as e:
+        return {"오류": str(e)[:800]}
+    return {"행 수": len(rows), "결과": rows}
+
+
+@app.get("/ow/api/graph/log")
+def graph_log(n: int = 50):
+    g = rt().get("graph")
+    return list(reversed(g.log[-n:])) if g else []
+
+
+@app.post("/ow/api/graph/subgraph")
+def graph_subgraph(body: dict = Body(...)):
+    """증거 그래프: 답에 나온 id들과 그 사이 연결."""
+    s = rt()["store"]
+    o = rt()["onto"]
+    keys = {}
+    for i in body.get("ids", [])[:60]:
+        r = s.db.execute("SELECT type, id FROM objects WHERE id=? LIMIT 3", (i,)).fetchall()
+        if not r:
+            r = s.db.execute("SELECT type, id FROM objects WHERE id LIKE ? LIMIT 3", (i + ":%",)).fetchall()
+        for t, x in r:
+            keys[(t, x)] = True
+    nodes = []
+    for (t, x) in keys:
+        ob = s.obj(t, x)
+        nodes.append({"id": f"{t}|{x}", "type": t, "label": ob["title"] if ob else x, "kind": o.type_name(t), "flags": _flags(t, x)})
+    ids = {n["id"] for n in nodes}
+    edges = []
+    for (t, x) in keys:
+        for l in s.links_from(t, x):
+            k = f"{l['dst_type']}|{l['dst_id']}"
+            if k in ids:
+                edges.append({"source": f"{t}|{x}", "target": k, "label": l["rel"]})
+    return {"nodes": nodes, "edges": edges}
+
+
+@app.post("/ow/api/shutdown")
+def shutdown():
+    """화면의 '끄기' 버튼: 서버를 끈다."""
+    import os
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+    return {"ok": True}
+
+
 @app.post("/ow/api/compare")
 def api_compare(body: dict = Body(...)):
     """같은 질문을 'ERP 조회만 가진 Claude'와 '온트윈'에 동시에."""
@@ -281,6 +365,7 @@ def onto_save(body: dict = Body(...)):
     if r.get("ok"):
         runtime.reload_schema()
         STATE["sync"] = None
+        sync().ensure_raw()
         sync().rebuild(kind="정의 수정", detail=f"v{r['version']} {body.get('reason', '')}")
         after_change()
     return r
@@ -293,6 +378,49 @@ def onto_patch(body: dict = Body(...)):
     if isinstance(y, dict):
         return y
     return onto_save({"yaml": y, "author": body.get("author", "이시형"), "reason": body.get("reason") or f"{body['path']} 수정"})
+
+
+@app.get("/ow/api/onto/model")
+def onto_model():
+    return editor.model(rt())
+
+
+@app.post("/ow/api/onto/op")
+def onto_op(body: dict = Body(...)):
+    """쉬운 편집: 단어·속성·관계문 추가/수정/삭제 → 검증 → 새 버전 저장 → 객체·그래프 DB 다시 만들기"""
+    y = editor.apply_op(editor.current(rt())["yaml"], body)
+    if isinstance(y, dict):
+        return y
+    return onto_save({"yaml": y, "author": body.get("author", "이시형"), "reason": body.get("reason") or editor.describe_op(body)})
+
+
+@app.get("/ow/api/erp/fields")
+def erp_fields(doctype: str):
+    """ERP 화면의 필드 목록(하위 표 필드는 '하위표.필드'). 관계문·속성 고를 때 쓴다."""
+    e = rt()["erp"]
+    m = e.meta(doctype)
+    out, skip = [], ("Section Break", "Column Break", "Tab Break", "HTML", "Button", "Fold", "Heading")
+    for f in m["fields"]:
+        if f["fieldtype"] in skip:
+            continue
+        if f["fieldtype"] in ("Table", "Table MultiSelect"):
+            try:
+                for cf in e.meta(f["options"])["fields"]:
+                    if cf["fieldtype"] not in skip + ("Table",):
+                        out.append({"field": f"{f['options']}.{cf['fieldname']}", "label": f"{f['label'] or f['options']} › {cf.get('label') or cf['fieldname']}",
+                                    "type": cf["fieldtype"], "link": cf.get("options") if cf["fieldtype"] == "Link" else None})
+            except Exception:
+                pass
+            continue
+        out.append({"field": f["fieldname"], "label": f.get("label") or f["fieldname"], "type": f["fieldtype"],
+                    "link": f.get("options") if f["fieldtype"] == "Link" else None})
+    return out
+
+
+@app.get("/ow/api/erp/doctypes")
+def erp_doctypes():
+    from app.agent.tools import ERP_DOCTYPES
+    return ERP_DOCTYPES
 
 
 @app.get("/ow/api/onto/versions")

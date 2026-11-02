@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>온트윈 Ontwin</title>
+<link rel="icon" href="/ow/static/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <link rel="stylesheet" href="/ow/static/style.css">
 <script src="/ow/static/vendor/marked.min.js"></script>
@@ -13,14 +14,16 @@
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">◐</span> 온트윈 <small>Ontwin · 노바레지스트</small></div>
-  <div class="sync-pill" id="syncPill" title="ERP 동기화 상태"><span class="dot"></span><span id="syncText">연결 중…</span></div>
+  <div class="brand"><img src="/ow/static/img/logo.svg" alt="" class="logo-img"> 온트윈 <small>Ontwin · 노바레지스트</small></div>
+  <div class="top-right">
+    <div class="sync-pill" id="syncPill" title="ERP·그래프 DB 동기화 상태"><span class="dot"></span><span id="syncText">연결 중…</span></div>
+    <button class="off" id="offBtn" title="온트윈 끄기">⏻ 끄기</button>
+  </div>
 </header>
 <div class="layout">
   <nav class="side" id="nav">
     <button data-tab="chat" class="on">💬 챗봇</button>
-    <button data-tab="erp">🗂 ERP 화면</button>
-    <button data-tab="board">🧩 작업대</button>
+    <button data-tab="erp">🗂 기초 정보</button>
     <button data-tab="compare">⚖ 비교</button>
     <button data-tab="graph">🕸 그래프</button>
     <button data-tab="onto">✎ 온톨로지</button>
@@ -32,11 +35,12 @@
       <div class="chat-wrap">
         <div class="msgs" id="msgs">
           <div class="hello">
+            <img src="/ow/static/img/logo.svg" alt="" class="hello-logo">
             <h2>무엇이든 물어보세요</h2>
-            <p>ERP와 회사 문서를 온톨로지로 이어서 답합니다. 숫자와 번호는 모두 근거가 있는 값만 씁니다.</p>
+            <p>ERP와 회사 문서를 온톨로지 그래프로 이어서 답합니다. 숫자와 번호는 모두 근거가 있는 값만 씁니다.</p>
             <div class="examples">
               <button>A사 PL-260731-K03-01 클레임 원인 후보와 같은 위험이 있는 재고·출하분 알려줘</button>
-              <button>한빛폴리텍 레진 최근 품질 경향 어때?</button>
+              <button>레진 IQC에서 금속 Zn이 평소보다 높은 lot과 공급사를 찾아줘</button>
               <button>PG-04 앞으로 3달 부족할까?</button>
               <button>RS-05 공급사를 BP-JP01로 바꾸면 어느 고객 재승인이 필요해?</button>
             </div>
@@ -53,38 +57,25 @@
       </div>
     </section>
 
-    <!-- ERP -->
+    <!-- 기초 정보: ERP 화면 최대 2개 + 오른쪽 챗봇 -->
     <section id="tab-erp" class="tab">
       <div class="erp-wrap">
         <nav class="erp-nav" id="erpNav"></nav>
-        <div class="erp-main">
-          <div class="erp-bar"><span id="erpTitle">ERPNext</span> · 오른쪽 아래 <b>온트윈</b> 버튼으로 지금 보는 문서에 대해 물어볼 수 있어요.
-            <a id="erpOpen" href="/app" target="_blank">새 창으로 열기 ↗</a></div>
-          <iframe id="erpFrame" data-src="/app/purchase-order" title="ERPNext"></iframe>
-        </div>
+        <div class="panes" id="panes"></div>
+        <aside class="side-chat" id="sideChat">
+          <div class="sc-head"><b>온트윈</b><span class="muted" id="scCtx">열린 화면 기준으로 답해요</span>
+            <button id="scToggle" title="접기">⟩</button></div>
+          <div class="sc-msgs" id="scMsgs">
+            <div class="sc-hello">열어 둔 화면을 보고 답하거나, <b>엑셀·PPT로 내보낼 자료</b>를 만들어 드려요.
+              <div class="sug">
+                <button>열린 화면 요약해줘</button>
+                <button>구매량 많은 원재료부터 평균 단가 표 만들어줘</button>
+                <button>공급사별 납기 준수율 표 만들어줘</button>
+              </div></div>
+          </div>
+          <form class="sc-ask" id="scForm"><textarea id="scQ" placeholder="질문 또는 '…표 만들어줘'"></textarea><button class="primary">보내기</button></form>
+        </aside>
       </div>
-    </section>
-
-    <!-- 작업대 -->
-    <section id="tab-board" class="tab">
-      <div class="board-head">
-        <div class="add-card">
-          <select id="cardSource">
-            <option value="onto">온톨로지 객체</option>
-            <option value="erp">ERP 화면(원본)</option>
-          </select>
-          <select id="cardType"></select>
-          <input id="cardTitle" placeholder="카드 이름 (예: 구매 현황)">
-          <button id="addCard">＋ 카드 올리기</button>
-        </div>
-        <div class="hint">카드를 클릭해 2개 이상 고르고, 아래에 만들 자료를 적으세요.</div>
-      </div>
-      <div class="cards" id="cards"></div>
-      <form class="make" id="makeForm">
-        <span id="selCount" class="chip">선택 0</span>
-        <input id="makeReq" placeholder="예: 구매량이 높은 원재료부터 평균 단가와 최근 단가 표 만들어줘">
-        <button class="primary" type="submit">만들기</button>
-      </form>
     </section>
 
     <!-- 비교 -->
@@ -96,7 +87,7 @@
       </form>
       <div class="cmp-cols">
         <div class="cmp-col"><h3>일반 Claude <small>ERP 조회 도구만</small></h3><div id="cmpA" class="cmp-body muted">—</div></div>
-        <div class="cmp-col"><h3>온트윈 <small>온톨로지 함수</small></h3><div id="cmpB" class="cmp-body muted">—</div></div>
+        <div class="cmp-col"><h3>온트윈 <small>온톨로지 그래프 + 함수</small></h3><div id="cmpB" class="cmp-body muted">—</div></div>
       </div>
       <h4>비교 기록</h4>
       <table class="grid" id="cmpLog"></table>
@@ -105,21 +96,33 @@
     <!-- 그래프 -->
     <section id="tab-graph" class="tab">
       <div class="graph-head">
-        <div class="seg"><button data-g="schema" class="on">설계도</button><button data-g="data">데이터 그래프</button></div>
+        <div class="seg"><button data-g="schema" class="on">설계도</button><button data-g="data">데이터 그래프</button><button data-g="cypher">그래프 질의</button></div>
         <form id="gFind" class="gfind"><input id="gQ" placeholder="객체 찾기: lot 번호, 공급사 이름, 원재료 코드…"><button>찾기</button></form>
-        <div class="legend"><span class="lg red"></span>부적합·불합격 <span class="lg orange"></span>IQC 경계·이상치</div>
+        <div class="legend" id="gLegend"><span class="lg red"></span>부적합·불합격 <span class="lg orange"></span>IQC 경계·이상치 <span class="lg dash"></span>정의만 있고 데이터 없음</div>
       </div>
-      <div class="graph-body">
+      <div class="graph-body" id="graphBody">
         <div id="cy"></div>
         <aside id="gSide" class="gside"><p class="muted">노드를 클릭하면 속성과 연결이 보입니다. 데이터 그래프에서는 더블클릭으로 펼칩니다.</p></aside>
       </div>
+      <div class="cypher-box" id="cypherBox" hidden>
+        <p class="muted">그래프 DB(LadybugDB)에 Cypher로 직접 질의합니다(읽기 전용). 온트윈과 Claude가 쓰는 것과 같은 그래프입니다.</p>
+        <textarea id="cyQ" class="yaml" style="height:110px">MATCH (s:supplier)<-[:제조사]-(r:raw_lot)<-[:대상]-(:inspection)-[:측정값]->(m:measurement)
+WHERE m.항목 = '금속 Zn' AND m.값 > 2
+RETURN s.이름 AS 공급사, r.id AS lot, m.값 AS Zn ORDER BY Zn DESC</textarea>
+        <p><button class="primary" id="cyRun">실행</button> <span class="muted" id="cyInfo"></span></p>
+        <div id="cyOut" class="tbl"></div>
+        <details><summary class="muted">그래프 스키마 보기</summary><pre class="code" id="cySchema"></pre></details>
+        <h4>최근 실행된 그래프 질의 <small class="muted">(함수·Claude·사람)</small></h4>
+        <table class="grid" id="cyLog"></table>
+      </div>
     </section>
 
-    <!-- 온톨로지 편집 -->
+    <!-- 온톨로지 -->
     <section id="tab-onto" class="tab">
       <div class="onto-head">
-        <div><b>온톨로지 정의</b> <span class="chip" id="ontoVer">v?</span> <span class="muted" id="ontoInfo"></span></div>
-        <div class="seg"><button data-o="rules" class="on">규칙 숫자</button><button data-o="objects">객체·별칭</button><button data-o="yaml">전체 정의(YAML)</button><button data-o="hist">수정 이력</button></div>
+        <div><b>온톨로지</b> <span class="chip" id="ontoVer">v?</span> <span class="muted" id="ontoInfo"></span></div>
+        <div class="seg"><button data-o="terms" class="on">① 단어 정의</button><button data-o="rels">② 관계문</button></div>
+        <div class="onto-tools"><button data-o="hist">수정 이력</button><button data-o="yaml">전체 정의(고급)</button></div>
       </div>
       <div id="ontoBody" class="onto-body"></div>
     </section>
@@ -127,10 +130,10 @@
     <!-- 동기화 -->
     <section id="tab-sync" class="tab">
       <div class="sync-grid">
-        <div class="box"><h4>ERP 연결</h4><div id="syncInfo"></div><button id="fullSync">전체 다시 읽기</button></div>
+        <div class="box"><h4>ERP · 그래프 DB</h4><div id="syncInfo"></div><button id="fullSync">전체 다시 읽기</button></div>
         <div class="box"><h4>객체 수</h4><table class="grid" id="syncCounts"></table></div>
         <div class="box wide"><h4>갱신 기록 <small class="muted">웹훅·변경분·정의 수정</small></h4><table class="grid" id="syncLog"></table></div>
-        <div class="box wide"><h4>ERPNext 웹훅 설정</h4>
+        <div class="box wide"><h4>ERPNext 웹훅 설정 (선택)</h4>
           <p>ERPNext → 웹훅(Webhook) 새로 만들기 → 문서 종류마다 <code>on_submit</code>, <code>on_update_after_submit</code>, <code>on_cancel</code> 이벤트,
           요청 URL <code id="hookUrl"></code>, 요청 형식 JSON, 본문 <code>{"doctype": "{{ doc.doctype }}", "name": "{{ doc.name }}"}</code></p>
           <p class="muted">웹훅이 없어도 20초마다 바뀐 문서를 가져오므로 1분 안에 반영됩니다.</p></div>

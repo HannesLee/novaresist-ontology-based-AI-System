@@ -44,6 +44,10 @@ ONTO_TOOLS = [
     {"name": "impacted_orders", "description": "원재료 지연(material) 또는 설비 중단(equipment, 기간)으로 영향받는 작업지시·수주.",
      "input_schema": {"type": "object", "properties": {"material": S, "delay_days": {"type": "integer"}, "equipment": S,
                                                        "date_from": S, "date_to": S}}},
+    {"name": "make_table", "description": "엑셀·파워포인트로 내보낼 표(자료)를 만든다. 사용자가 '표/자료/보고서 만들어줘'라고 하면 쓴다. "
+                                        "sources에는 쓸 데이터(온톨로지 객체 종류 이름 예: '구매 건','원재료','완제품 lot', 또는 ERP 화면 예: 'Purchase Order')를, "
+                                        "request에는 만들 표를 구체적으로 적는다(정렬·필터·상위 N·열). 계산은 코드로 하므로 숫자가 정확하다.",
+     "input_schema": {"type": "object", "properties": {"sources": SA, "request": S}, "required": ["sources", "request"]}},
     {"name": "search_docs", "description": "ERP 밖 문서(메일, 회의록, 결정 기록, SOP, 운영 규칙집)를 키워드로 찾는다.",
      "input_schema": {"type": "object", "properties": {"query": S}, "required": ["query"]}},
     {"name": "read_doc", "description": "문서 본문 읽기 (search_docs 또는 get의 '관련 문서'에 나온 경로).",
@@ -75,6 +79,8 @@ ERP_DOCTYPES = ["Supplier", "Item", "Item Supplier", "Material Request", "Purcha
 def run(rt, mode, name, args):
     """도구 실행 → 결과(dict/list)."""
     o = rt["onto"]
+    if name == "make_table":
+        return make_table(rt, args.get("sources") or [], args.get("request", ""))
     if mode == "ontology" or name in ("search_docs", "read_doc"):
         fn = getattr(o, name, None)
         if fn is None or name.startswith("_"):
@@ -105,3 +111,22 @@ def run(rt, mode, name, args):
 def dumps(x, limit=14000):
     s = json.dumps(x, ensure_ascii=False, default=str)
     return s if len(s) <= limit else s[:limit] + f" …(잘림, 전체 {len(s)}자. 조건을 좁혀 다시 조회)"
+
+
+def make_table(rt, sources, request):
+    """대화에서 자료 만들기: 데이터 카드를 만들고 작업대 계산기로 표를 만든다."""
+    from app.board import board as B
+    ids = []
+    for src in sources:
+        t = rt["onto"].resolve_type(src)
+        spec = {"source": "onto", "type": t, "title": rt["schema"]["objects"][t]["name"]} if t else \
+            {"source": "erp", "doctype": src, "title": src}
+        c = B.add_card(rt, spec)
+        if c.get("error"):
+            return {"오류": f"데이터 '{src}'를 읽지 못했습니다: {c['error']}"}
+        ids.append(c["id"])
+    r = B.make(rt, ids, request)
+    if r.get("error"):
+        return {"오류": r["error"]}
+    return {"표": r["title"], "card_id": r["id"], "열": r["columns"], "행 수": r["total"],
+            "미리보기": r["rows"][:12], "계산 방법": r.get("note", ""), "차트": r.get("chart")}

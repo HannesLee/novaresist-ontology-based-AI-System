@@ -25,7 +25,7 @@
   // 온트윈 안(iframe)에서는 ERPNext 자체 메뉴를 숨기고 온트윈의 업무별 메뉴를 쓴다
   if (window.top !== window.self) {
     const em = document.createElement('style');
-    em.textContent = `.dock,.body-sidebar-container{display:none!important}
+    em.textContent = `.dock,.body-sidebar-container,#ow-btn,#ow-panel{display:none!important}
       body{--dock-width:0px!important;--sidebar-width:0px!important}
       .main-section,.page-container,.layout-main,.container.page-body{margin-left:0!important;padding-left:0!important}`;
     document.head.append(em);

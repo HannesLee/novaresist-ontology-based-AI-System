@@ -41,6 +41,18 @@ class Sync:
         log(f"전체 동기화 {time.time() - t0:.0f}초, 바뀐 객체 {n}개")
         return n
 
+    def ensure_raw(self):
+        """정의가 바뀌어 새로 필요한 ERP 화면이 생기면 그 화면만 읽어 온다."""
+        have = set(self.store.raw_doctypes())
+        n = 0
+        for dt, par in self.fetch:
+            if dt not in have:
+                rows = self.erp.get_all(dt, parent=par)
+                self.store.put_raw(dt, rows, replace_all=True, parent=par)
+                n += 1
+        self.store.db.commit()
+        return n
+
     def on_change(self, doctype, name):
         """웹훅으로 받은 문서 1건 반영."""
         if doctype not in self.parents:
