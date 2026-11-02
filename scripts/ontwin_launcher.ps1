@@ -25,10 +25,21 @@ $bar.Style = 'Marquee'; $bar.MarqueeAnimationSpeed = 30; $bar.Size = New-Object 
 $form.Controls.AddRange(@($pic, $title, $sub, $status, $bar))
 $form.Show(); [Windows.Forms.Application]::DoEvents()
 
-function Step($t) { $status.Text = $t; [Windows.Forms.Application]::DoEvents() }
+$logf = Join-Path $here 'launcher.log'
+function Log($t) { Add-Content -Path $logf -Value ((Get-Date -Format 'HH:mm:ss') + ' ' + $t) -Encoding UTF8 }
+function Step($t) { Log $t; $status.Text = $t; [Windows.Forms.Application]::DoEvents() }
 function Pump($ms) { $end = (Get-Date).AddMilliseconds($ms); while ((Get-Date) -lt $end) { [Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 50 } }
-function OntwinUp { try { (Invoke-WebRequest -UseBasicParsing -TimeoutSec 2 $url).StatusCode -eq 200 } catch { $false } }
-function DockerUp { $p = Start-Process wsl -ArgumentList '-e', 'bash', '-lc', 'docker info >/dev/null 2>&1' -WindowStyle Hidden -PassThru -Wait; $p.ExitCode -eq 0 }
+function OntwinUp {
+  # 프록시 설정을 건너뛰고 바로 확인
+  try { $r = [Net.HttpWebRequest]::Create($url); $r.Proxy = $null; $r.Timeout = 2000; $resp = $r.GetResponse(); $ok = ([int]$resp.StatusCode -eq 200); $resp.Close(); $ok } catch { $false }
+}
+function Wsl($cmd, [switch]$Wait) {
+  # 인자를 한 줄로 넘겨야 bash -lc 가 명령 전체를 받는다
+  $a = '-e bash -lc "' + $cmd + '"'
+  Log "wsl $a"
+  if ($Wait) { (Start-Process wsl -ArgumentList $a -WindowStyle Hidden -PassThru -Wait).ExitCode } else { Start-Process wsl -ArgumentList $a -WindowStyle Hidden | Out-Null }
+}
+function DockerUp { (Wsl 'docker info >/dev/null 2>&1' -Wait) -eq 0 }
 function Fail($msg) { $form.TopMost = $false; [Windows.Forms.MessageBox]::Show($msg, '온트윈') | Out-Null; $form.Close(); exit 1 }
 
 if (-not (OntwinUp)) {
@@ -48,9 +59,9 @@ if (-not (OntwinUp)) {
     if (-not $ok) { Fail 'Docker가 4분 안에 켜지지 않았어요. Docker Desktop 상태를 확인해 주세요.' }
   }
   Step 'ERPNext 켜는 중...'
-  Start-Process wsl -ArgumentList '-e', 'bash', '-lc', 'cd ~/frappe_docker && docker compose -f pwd.yml up -d >/dev/null 2>&1' -WindowStyle Hidden -Wait
+  Wsl 'cd ~/frappe_docker && docker compose -f pwd.yml up -d >/dev/null 2>&1' -Wait | Out-Null
   Step '온트윈 켜는 중... (ERP 준비를 기다려요)'
-  Start-Process wsl -ArgumentList '-e', 'bash', '-lc', '~/ontwin/scripts/serve.sh >> ~/ontwin/ontwin.log 2>&1' -WindowStyle Hidden
+  Wsl '~/ontwin/scripts/serve.sh >> ~/ontwin/ontwin.log 2>&1'
   $ok = $false
   for ($i = 0; $i -lt 150; $i++) { if (OntwinUp) { $ok = $true; break }; Pump 2000 }
   if (-not $ok) { Fail '온트윈이 켜지지 않았어요. Ubuntu에서 ~/ontwin/ontwin.log 파일을 확인해 주세요.' }
