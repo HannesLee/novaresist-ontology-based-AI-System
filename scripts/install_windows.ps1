@@ -2,8 +2,8 @@
 $src = Split-Path -Parent $MyInvocation.MyCommand.Path
 $dst = Join-Path $env:LOCALAPPDATA 'Ontwin'
 New-Item -ItemType Directory -Force -Path $dst | Out-Null
-Copy-Item "$src\ontwin_launcher.ps1", "$src\ontwin.vbs", "$src\ontwin.ico" -Destination $dst -Force
-Copy-Item "$src\..\app\web\static\img\logo.png" -Destination $dst -Force
+Copy-Item "$src\ontwin_launcher.ps1", "$src\ontwin.vbs", "$src\ontwin.ico" -Destination $dst -Force -ErrorAction SilentlyContinue
+Copy-Item "$src\..\app\web\static\img\logo.png" -Destination $dst -Force -ErrorAction SilentlyContinue
 $desk = [Environment]::GetFolderPath('Desktop')
 $sh = New-Object -ComObject WScript.Shell
 $lnk = $sh.CreateShortcut((Join-Path $desk '온트윈.lnk'))

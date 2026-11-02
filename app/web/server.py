@@ -72,6 +72,24 @@ def _start():
     threading.Thread(target=_poller, daemon=True).start()
 
 
+# ---------------- 버전 (실행기가 옛 서버를 알아보는 데 쓴다) ----------------
+def _git_head():
+    try:
+        import subprocess
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=config.ROOT, capture_output=True,
+                              text=True, timeout=5).stdout.strip()
+    except Exception:
+        return ""
+
+
+VERSION = _git_head()
+
+
+@app.get("/ow/api/version")
+def version():
+    return {"commit": VERSION}
+
+
 # ---------------- 화면 ----------------
 @app.get("/ow")
 @app.get("/ow/")
