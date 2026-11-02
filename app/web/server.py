@@ -21,6 +21,16 @@ from app.ontology.sync import Sync
 
 STATIC = pathlib.Path(__file__).parent / "static"
 app = FastAPI(title="Ontwin")
+
+
+@app.middleware("http")
+async def _no_cache(request, call_next):
+    """업데이트 후 옛 화면이 남지 않게 온트윈 화면 파일은 캐시하지 않는다."""
+    resp = await call_next(request)
+    p = request.url.path
+    if p.startswith("/ow") and not p.startswith("/ow/static/vendor"):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
 app.mount("/ow/static", StaticFiles(directory=STATIC), name="static")
 
 STATE = {"sync": None, "poll_sec": 20, "last_poll": None, "poll_error": None}
