@@ -63,6 +63,12 @@ def _start():
             s.full(log=lambda *_: None)
         except Exception as e:
             STATE["poll_error"] = f"첫 동기화 실패: {e}"[:300]
+    g = rt().get("graph")
+    if g is not None and g.conn is None:  # 그래프 DB가 아직 없으면(처음 켤 때) 지금 만든다
+        try:
+            s.rebuild(kind="그래프 DB 준비")
+        except Exception as e:
+            STATE["poll_error"] = f"그래프 DB 준비 실패: {e}"[:300]
     threading.Thread(target=_poller, daemon=True).start()
 
 
