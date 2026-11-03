@@ -129,6 +129,6 @@ def ask(rt, question, mode="ontology", history=None, context=None, docs=True, mo
     found = set(ID.findall("\n".join(seen_text)))
     evidence = sorted({x for x in ID.findall(answer) if x in found})
     unverified = sorted({x for x in ID.findall(answer) if x not in found})
-    return {"answer": answer, "steps": steps, "tables": tables, "onto_version": str(rt["schema"]["meta"]["version"]), "evidence": evidence, "unverified": unverified, "usage": usage,
+    return {"answer": answer, "steps": steps, "tables": tables, "model": model or config.CLAUDE_MODEL, "onto_version": str(rt["schema"]["meta"]["version"]), "evidence": evidence, "unverified": unverified, "usage": usage,
             "seconds": round(time.time() - t0, 1), "mode": mode,
             "history": msgs[:1 + len(history or [])] + [{"role": "assistant", "content": answer}]}

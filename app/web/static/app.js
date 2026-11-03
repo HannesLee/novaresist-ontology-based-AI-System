@@ -28,7 +28,7 @@ function show(tab) {
   $$('.tab').forEach(s => s.classList.toggle('on', s.id === 'tab-' + tab));
   if (!loaded[tab]) {
     loaded[tab] = true;
-    ({ erp: initErp, graph: () => graphMode('schema'), onto: () => ontoMode('terms'), sync: loadSync, compare: loadCmpLog })[tab]?.();
+    ({ erp: initErp, graph: () => graphMode('schema'), onto: () => ontoMode('terms'), sync: loadSync })[tab]?.();
   }
   if (tab === 'sync') loadSync();
 }
@@ -79,11 +79,12 @@ async function streamChat(body, onStep) {
 }
 const stepLine = s => `<div>${esc(s.tool)} <small>${esc(JSON.stringify(s.input)).slice(0, 110)} · ${s.ms}ms${s.cypher?.length ? ' · 그래프 질의 ' + s.cypher.length : ''}</small></div>`;
 
+const modelName = id => (MODELS.find(m => m.id === id) || {}).name || id || '';
 function renderAnswer(box, r, question, compact) {
   const u = r.usage || {};
   const nq = r.steps.reduce((a, s) => a + (s.cypher?.length || 0), 0);
   box.innerHTML = `${md(r.answer)}<div class="tables"></div>
-    <div class="meta">${r.mode === 'erp' ? '<span class="chip">ERP만</span>' : '<span class="chip">온톨로지 v' + esc(r.onto_version || '') + '</span>'}
+    <div class="meta"><span class="chip">${esc(modelName(r.model))}</span><span class="chip">온톨로지 v${esc(r.onto_version || '')}</span>
       <span>${r.seconds}초 · 도구 ${r.steps.length}번${nq ? ' · 그래프 질의 ' + nq + '번' : ''}${compact ? '' : ' · 토큰 ' + ((u.input || 0) + (u.output || 0)).toLocaleString()}</span>
       <span class="exp"><button data-f="evid" title="온톨로지·그래프 질의·근거 그래프">🔎 증거</button>
         <button data-f="xlsx">엑셀</button><button data-f="pptx">PPT</button><button data-f="docx">워드</button></span></div>
@@ -135,19 +136,30 @@ async function download(fmt, body) {
 // ---------------- 챗봇 탭 ----------------
 let history = [];
 const q = $('#q');
-q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#askForm').requestSubmit(); } });
-q.addEventListener('input', () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 160) + 'px'; });
-$$('.examples button').forEach(b => b.onclick = () => { q.value = b.textContent; $('#askForm').requestSubmit(); });
+let MODELS = [];
+function curModel() { try { return localStorage.getItem('ontwin.model') || ''; } catch (e) { return ''; } }
+api('models').then(r => {
+  MODELS = r.models;
+  const saved = curModel() || r.default;
+  $('#model').innerHTML = MODELS.map(m => `<option value="${m.id}" ${m.id === saved ? 'selected' : ''}>${esc(m.name)}</option>`).join('');
+  $('#model').title = MODELS.map(m => `${m.name}: ${m.note}`).join('\n');
+});
+$('#model').onchange = e => { try { localStorage.setItem('ontwin.model', e.target.value); } catch (x) { } };
+const hour = new Date().getHours();
+$('#greet').textContent = hour < 12 ? '좋은 아침이에요. 무엇을 확인할까요?' : hour < 18 ? '무엇을 확인할까요?' : '오늘 하루 마무리, 무엇을 확인할까요?';
+q.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#askForm').requestSubmit(); } });
+q.addEventListener('input', () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 200) + 'px'; });
+$$('#examples button').forEach(b => b.onclick = () => { q.value = b.textContent; $('#askForm').requestSubmit(); });
 $('#askForm').onsubmit = async e => {
   e.preventDefault();
   const question = q.value.trim(); if (!question) return;
   q.value = ''; q.style.height = 'auto';
-  $('.hello')?.remove();
+  $('#chatWrap').classList.remove('empty'); $('.hello')?.remove();
   addMsg('#msgs', 'user', esc(question));
   const box = addMsg('#msgs', 'bot', `<div class="live-steps"><span class="spin"></span> 생각하는 중…</div>`);
-  const btn = $('#askForm button'); btn.disabled = true;
+  const btn = $('#askForm .send'); btn.disabled = true;
   try {
-    const r = await streamChat({ question, mode: $('#mode').value, history }, step => {
+    const r = await streamChat({ question, history, model: $('#model').value }, step => {
       $('.live-steps', box).insertAdjacentHTML('beforeend', stepLine(step)); box.parentElement.scrollIntoView({ block: 'end' });
     });
     history = r.history.slice(-12);
@@ -169,7 +181,7 @@ async function openEvidence(r, question) {
   $('#drawerBody').innerHTML = `<h3 style="margin-top:0">🔎 이 답의 증거</h3>
     <p class="muted">질문: ${esc(question)}</p>
     <h4>① Claude API에 들어간 온톨로지</h4>
-    <div class="kv"><div>모델</div><div>${esc(p.model)}</div><div>온톨로지 버전</div><div>v${esc(r.onto_version || p.onto_version)}</div>
+    <div class="kv"><div>모델</div><div>${esc(modelName(r.model) || p.model)} (${esc(r.model || p.model)})</div><div>온톨로지 버전</div><div>v${esc(r.onto_version || p.onto_version)}</div>
       <div>그래프 DB</div><div>LadybugDB · 노드 ${(p.graph.노드 || 0).toLocaleString()} · 관계 ${(p.graph.관계 || 0).toLocaleString()}</div>
       <div>도구</div><div>${p.tools.map(t => esc(t.name)).join(', ')}</div></div>
     <details><summary class="muted">시스템 프롬프트 전문 (${p.system.length.toLocaleString()}자)</summary><pre class="code">${esc(p.system)}</pre></details>
@@ -274,7 +286,7 @@ $('#scForm').onsubmit = async e => {
   addMsg('#scMsgs', 'user', esc(question));
   const box = addMsg('#scMsgs', 'bot', `<div class="live-steps"><span class="spin"></span> 생각하는 중…</div>`);
   try {
-    const r = await streamChat({ question, history: scHistory, context: erpContext(), mode: 'ontology' }, step => {
+    const r = await streamChat({ question, history: scHistory, context: erpContext(), mode: 'ontology', model: $('#model').value }, step => {
       $('.live-steps', box).insertAdjacentHTML('beforeend', stepLine(step)); $('#scMsgs').scrollTop = 1e9;
     });
     scHistory = r.history.slice(-10);
@@ -282,33 +294,6 @@ $('#scForm').onsubmit = async e => {
   } catch (err) { box.innerHTML = `<span class="probs">오류: ${esc(err.message)}</span>`; }
   $('#scMsgs').scrollTop = 1e9;
 };
-
-// ---------------- 비교 ----------------
-$('#cmpForm').onsubmit = async e => {
-  e.preventDefault();
-  const question = $('#cmpQ').value.trim(); if (!question) return;
-  ['#cmpA', '#cmpB'].forEach(s => $(s).innerHTML = '<span class="spin"></span> 답하는 중…');
-  const btn = $('#cmpForm button'); btn.disabled = true;
-  try {
-    const r = await api('compare', { method: 'POST', body: { question, docs: $('#cmpDocs').checked } });
-    $('#cmpA').innerHTML = cmpHtml(r.erp); $('#cmpB').innerHTML = cmpHtml(r.ontology);
-    $$('.cmp-body .ev').forEach(b => b.onclick = () => openObject(b.textContent));
-    loadCmpLog();
-  } catch (err) { toast(err.message); }
-  btn.disabled = false;
-};
-function cmpHtml(r) {
-  const u = r.usage || {};
-  return `<div class="stats"><span>⏱ <b>${r.seconds}</b>초</span><span>도구 <b>${r.steps.length}</b>번</span><span>근거 <b>${r.evidence.length}</b>개</span>
-    <span>토큰 <b>${((u.input || 0) + (u.output || 0)).toLocaleString()}</b></span></div>${md(r.answer)}
-    <div class="meta">${r.evidence.map(x => `<button class="ev">${esc(x)}</button>`).join('')}</div>
-    <details class="steps"><summary>도구 호출 ${r.steps.length}개</summary>${r.steps.map(s => `<div class="step"><b>${esc(s.tool)}</b> <code>${esc(JSON.stringify(s.input)).slice(0, 200)}</code></div>`).join('')}</details>`;
-}
-async function loadCmpLog() {
-  const rows = await api('compare/log');
-  $('#cmpLog').innerHTML = `<tr><th>시각</th><th>질문</th><th>일반 Claude (초/도구/근거)</th><th>온트윈 (초/도구/근거)</th></tr>` +
-    rows.map(r => `<tr><td>${r.at}</td><td style="white-space:normal">${esc(r.question)}</td>${['erp', 'ontology'].map(m => { const s = r.summary[m] || {}; return `<td>${s.seconds}초 / ${s.tools} / ${s.evidence}</td>`; }).join('')}</tr>`).join('');
-}
 
 // ---------------- 그래프 ----------------
 let cy = null, gmode = 'schema';

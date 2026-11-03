@@ -24,7 +24,6 @@
   <nav class="side" id="nav">
     <button data-tab="chat" class="on">💬 챗봇</button>
     <button data-tab="erp">🗂 기초 정보</button>
-    <button data-tab="compare">⚖ 비교</button>
     <button data-tab="graph">🕸 그래프</button>
     <button data-tab="onto">✎ 온톨로지</button>
     <button data-tab="sync">⟳ 동기화</button>
@@ -32,28 +31,28 @@
   <main>
     <!-- 챗봇 -->
     <section id="tab-chat" class="tab on">
-      <div class="chat-wrap">
+      <div class="chat-wrap empty" id="chatWrap">
         <div class="msgs" id="msgs">
           <div class="hello">
             <img src="/ow/static/img/logo.svg" alt="" class="hello-logo">
-            <h2>무엇이든 물어보세요</h2>
-            <p>ERP와 회사 문서를 온톨로지 그래프로 이어서 답합니다. 숫자와 번호는 모두 근거가 있는 값만 씁니다.</p>
-            <div class="examples">
-              <button>A사 PL-260731-K03-01 클레임 원인 후보와 같은 위험이 있는 재고·출하분 알려줘</button>
-              <button>레진 IQC에서 금속 Zn이 평소보다 높은 lot과 공급사를 찾아줘</button>
-              <button>PG-04 앞으로 3달 부족할까?</button>
-              <button>RS-05 공급사를 BP-JP01로 바꾸면 어느 고객 재승인이 필요해?</button>
-            </div>
+            <h1 id="greet">무엇을 도와드릴까요?</h1>
           </div>
         </div>
-        <form class="ask" id="askForm">
-          <select id="mode" title="답하는 방식">
-            <option value="ontology">온트윈</option>
-            <option value="erp">ERP만 (일반 Claude)</option>
-          </select>
-          <textarea id="q" rows="1" placeholder="질문을 입력하세요 (Enter 보내기, Shift+Enter 줄바꿈)"></textarea>
-          <button class="primary" type="submit">보내기</button>
+        <form class="composer" id="askForm">
+          <textarea id="q" rows="1" placeholder="온트윈에게 물어보세요"></textarea>
+          <div class="composer-bar">
+            <span class="muted small">온톨로지 그래프 · ERP · 문서를 근거로 답해요</span>
+            <select id="model" class="model-pick" title="답할 Claude 모델"></select>
+            <button class="send" type="submit" title="보내기">↑</button>
+          </div>
         </form>
+        <div class="examples" id="examples">
+          <button>A사 PL-260731-K03-01 클레임 원인 후보와 같은 위험이 있는 재고·출하분 알려줘</button>
+          <button>레진 IQC에서 금속 Zn이 평소보다 높은 lot과 공급사를 찾아줘</button>
+          <button>PG-04 앞으로 3달 부족할까?</button>
+          <button>RS-05 공급사를 BP-JP01로 바꾸면 어느 고객 재승인이 필요해?</button>
+        </div>
+        <p class="disclaimer muted small">Claude 모델(Anthropic API)로 답합니다. 중요한 판단은 근거를 확인하세요.</p>
       </div>
     </section>
 
@@ -76,21 +75,6 @@
           <form class="sc-ask" id="scForm"><textarea id="scQ" placeholder="질문 또는 '…표 만들어줘'"></textarea><button class="primary">보내기</button></form>
         </aside>
       </div>
-    </section>
-
-    <!-- 비교 -->
-    <section id="tab-compare" class="tab">
-      <form class="cmp-form" id="cmpForm">
-        <input id="cmpQ" placeholder="같은 질문을 '일반 Claude(ERP 조회만)'와 '온트윈'에 동시에 물어봅니다">
-        <label class="chk"><input type="checkbox" id="cmpDocs"> 일반 Claude에도 문서 검색 허용</label>
-        <button class="primary" type="submit">비교 실행</button>
-      </form>
-      <div class="cmp-cols">
-        <div class="cmp-col"><h3>일반 Claude <small>ERP 조회 도구만</small></h3><div id="cmpA" class="cmp-body muted">—</div></div>
-        <div class="cmp-col"><h3>온트윈 <small>온톨로지 그래프 + 함수</small></h3><div id="cmpB" class="cmp-body muted">—</div></div>
-      </div>
-      <h4>비교 기록</h4>
-      <table class="grid" id="cmpLog"></table>
     </section>
 
     <!-- 그래프 -->

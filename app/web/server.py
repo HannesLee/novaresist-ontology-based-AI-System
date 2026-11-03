@@ -255,10 +255,29 @@ def _flags(t, i):
 
 
 # ---------------- 챗봇·비교 ----------------
+MODELS = [
+    {"id": "claude-sonnet-5-5", "name": "Claude Sonnet 5.5", "note": "기본. 빠르고 정확, 비용 보통"},
+    {"id": "claude-opus-5-5", "name": "Claude Opus 5.5", "note": "복잡한 추적·판단에 강함, 비용 더 큼"},
+    {"id": "claude-fable-5-1", "name": "Claude Fable 5.1", "note": "가장 뛰어남, 가장 비쌈"},
+    {"id": "claude-haiku-5-5", "name": "Claude Haiku 5.5", "note": "가장 빠르고 저렴, 간단한 조회용"},
+]
+MODEL_IDS = {m["id"] for m in MODELS}
+
+
+@app.get("/ow/api/models")
+def models():
+    return {"models": MODELS, "default": config.CLAUDE_MODEL}
+
+
+def _model(body):
+    m = body.get("model")
+    return m if m in MODEL_IDS else None
+
+
 @app.post("/ow/api/chat")
 def api_chat(body: dict = Body(...)):
     r = chat.ask(rt(), body["question"], mode=body.get("mode", "ontology"), history=body.get("history"),
-                 context=body.get("context"))
+                 context=body.get("context"), model=_model(body))
     return r
 
 
@@ -271,7 +290,7 @@ def api_chat_stream(body: dict = Body(...)):
     def work():
         try:
             r = chat.ask(rt(), body["question"], mode=body.get("mode", "ontology"), history=body.get("history"),
-                         context=body.get("context"), on_step=lambda s: qq.put(("step", s)))
+                         context=body.get("context"), model=_model(body), on_step=lambda s: qq.put(("step", s)))
             qq.put(("done", r))
         except Exception as e:
             qq.put(("error", {"error": str(e)[:500]}))
