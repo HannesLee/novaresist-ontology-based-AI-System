@@ -225,7 +225,7 @@ function objectHtml(o) {
     ${links}${docs ? `<h4>관련 문서</h4>${docs}` : ''}`;
 }
 
-// ---------------- 기초 정보: ERP 화면 2개 + 오른쪽 챗봇 ----------------
+// ---------------- ERP: 화면 분할(최대 2개) + 오른쪽 챗봇 ----------------
 const ERP_MENU = [
   ['구매', [['material-request', '구매요청'], ['purchase-order', '발주(구매 건)'], ['purchase-receipt', '입고']]],
   ['품질', [['quality-inspection', '검사', 'IQC·출하검사 측정값'], ['non-conformance', '부적합·클레임'], ['quality-inspection-template', '검사 기준']]],
@@ -236,7 +236,7 @@ const ERP_MENU = [
 ];
 const panes = []; let activePane = 0;
 function initErp() {
-  $('#erpNav').innerHTML = `<div class="nav-tools"><button id="splitBtn">◫ 화면 2개</button></div>` + ERP_MENU.map(([g, items]) => `<h5>${g}</h5>` + items.map(([r, label, sub]) =>
+  $('#erpNav').innerHTML = `<div class="nav-tools"><button id="splitBtn" title="화면을 둘로 나눠 두 화면을 같이 봐요">◫ 화면 분할</button></div>` + ERP_MENU.map(([g, items]) => `<h5>${g}</h5>` + items.map(([r, label, sub]) =>
     `<button data-r="${esc(r)}">${esc(label)}${sub ? `<small>${esc(sub)}</small>` : ''}</button>`).join('')).join('');
   $$('#erpNav button[data-r]').forEach(b => b.onclick = () => openErp(b.dataset.r));
   $('#splitBtn').onclick = () => panes.length < 2 ? addPane('purchase-receipt') : closePane(1);
@@ -252,12 +252,12 @@ function addPane(route) {
   el.addEventListener('mousedown', () => setActive(panes.indexOf(p)), true);
   $('.pclose', el).onclick = e => { e.stopPropagation(); closePane(panes.indexOf(p)); };
   setActive(panes.length - 1); openErp(route);
-  $('#splitBtn').textContent = panes.length < 2 ? '◫ 화면 2개' : '▭ 화면 1개';
+  $('#splitBtn').classList.toggle('on', panes.length > 1);
 }
 function closePane(i) {
   if (panes.length <= 1) return;
   panes[i].el.remove(); panes.splice(i, 1); setActive(0);
-  $('#splitBtn').textContent = '◫ 화면 2개';
+  $('#splitBtn').classList.remove('on');
 }
 function setActive(i) { activePane = i; panes.forEach((p, j) => p.el.classList.toggle('active', j === i)); }
 function openErp(route) {

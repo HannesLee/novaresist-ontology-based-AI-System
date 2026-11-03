@@ -238,3 +238,5 @@ pre.cy { background: #0f1b2d; color: #cfe1ff; padding: 6px 8px; border-radius: 6
 .chat-wrap:not(.empty) .disclaimer { margin-bottom: 12px; }
 .msg.user .bubble { background: #eef1f6; color: var(--ink); border: none; border-radius: 16px; }
 .msg.bot .bubble { background: transparent; border: none; padding: 4px 2px; width: 100%; }
+
+#splitBtn.on { background: var(--navy); color: #fff; border-color: var(--navy); }
