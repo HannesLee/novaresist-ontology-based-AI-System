@@ -81,7 +81,7 @@ def system_prompt(rt, mode, context=None):
     return base
 
 
-def ask(rt, question, mode="ontology", history=None, context=None, docs=True, model=None, max_rounds=16, on_step=None):
+def ask(rt, question, mode="ontology", history=None, context=None, docs=True, model=None, max_rounds=30, on_step=None):
     """질문 하나 → {'answer', 'steps', 'evidence', 'usage', 'seconds'}"""
     client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
     tools = T.ONTO_TOOLS if mode == "ontology" else T.ERP_TOOLS + (T.DOC_TOOLS if docs else [])
@@ -92,15 +92,35 @@ def ask(rt, question, mode="ontology", history=None, context=None, docs=True, mo
     rt["onto"].clear()
     answer = ""
     tables = []
-    for _ in range(max_rounds):
-        r = client.messages.create(model=model or config.CLAUDE_MODEL, max_tokens=4000, system=sys,
-                                   tools=tools, messages=msgs)
+    for rnd in range(max_rounds):
+        last_round = rnd == max_rounds - 1
+        # 대화가 길어질수록 같은 앞부분을 매번 다시 보낸다 → 마지막 메시지에 캐시 표시를 옮겨 붙여 다시 읽는 비용을 줄인다
+        for m in msgs:
+            if isinstance(m.get("content"), list):
+                for b in m["content"]:
+                    if isinstance(b, dict):
+                        b.pop("cache_control", None)
+        if isinstance(msgs[-1].get("content"), list) and msgs[-1]["content"]:
+            msgs[-1]["content"][-1]["cache_control"] = {"type": "ephemeral"}
+        # 마지막 라운드: 도구 없이 지금까지 모은 결과로 답하게 한다(빈손으로 끝나지 않게)
+        kw = {"tools": tools} if not last_round else {"tools": tools, "tool_choice": {"type": "none"}}
+        r = client.messages.create(model=model or config.CLAUDE_MODEL, max_tokens=8000, system=sys,
+                                   messages=msgs, **kw)
         usage["input"] += r.usage.input_tokens
         usage["output"] += r.usage.output_tokens
         usage["cache_read"] += getattr(r.usage, "cache_read_input_tokens", 0) or 0
+        usage["cache_write"] = usage.get("cache_write", 0) + (getattr(r.usage, "cache_creation_input_tokens", 0) or 0)
         msgs.append({"role": "assistant", "content": [b.model_dump(exclude_none=True) for b in r.content]})
         if r.stop_reason != "tool_use":
             answer = "".join(b.text for b in r.content if b.type == "text")
+            if r.stop_reason == "max_tokens" and not answer.strip():
+                msgs.pop()  # 잘린 답(미완성 도구 호출 포함)은 버리고, 직전 사용자 메시지에 요청을 덧붙인다
+                note = {"type": "text", "text": "출력 한도에 걸렸다. 도구 없이 지금까지 결과로 결론·근거를 간결하게 답하라."}
+                if isinstance(msgs[-1]["content"], list):
+                    msgs[-1]["content"].append(note)
+                else:
+                    msgs[-1]["content"] = [{"type": "text", "text": msgs[-1]["content"]}, note]
+                continue
             break
         results = []
         for b in r.content:

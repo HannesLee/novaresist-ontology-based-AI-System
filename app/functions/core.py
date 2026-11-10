@@ -491,10 +491,54 @@ class Onto:
                 rows.append({"요인 종류": k[0], "요인": k[1], "문제 lot 중": f"{n}/{len(target)}",
                              "비교군 중": f"{cnt_c.get(k, 0)}/{len(comp)}", "차이": round(share_t - share_c, 2)})
         rows.sort(key=lambda r: (-r["차이"], r["요인 종류"]))
-        return {"문제 lot": target, "비교군": f"같은 제품({', '.join(sorted(p for p in prods if p))})의 나머지 lot {len(comp)}개"
-                if not compare else f"지정 {len(comp)}개",
-                "공통 요인(차이 큰 순)": rows[:25],
-                "해석 주의": "차이가 크다고 원인이라는 뜻은 아니다. 원재료 lot 단위 요인은 측정값·문서로 확인 필요"}
+        out = {"문제 lot": target, "비교군": f"같은 제품({', '.join(sorted(p for p in prods if p))})의 나머지 lot {len(comp)}개"
+               if not compare else f"지정 {len(comp)}개",
+               "공통 요인(차이 큰 순)": rows[:25],
+               "해석 주의": "차이가 크다고 원인이라는 뜻은 아니다. 원재료 lot 단위 요인은 측정값·문서로 확인 필요"}
+        if len(target) <= 2 and comp:
+            # 문제 lot이 1~2개면 '이 lot에만 있는 요인'이 모두 차이 1.0이 되어 우연한 요인이 위로 올라온다.
+            # 그래서 같은 요인을 가진 다른 lot의 출하검사 결과(가장 나쁜 항목의 규격 여유)로 다시 줄 세운다.
+            worst = {}
+            items = set()
+            for l in target:
+                for m in self._oqc_meas(l):
+                    items.add(m[0])
+            for l in comp:
+                ms = [m for m in self._oqc_meas(l) if not items or m[0] in items]
+                if ms:
+                    worst[l] = min(m[1] for m in ms)
+            base = statistics.mean(worst.values()) if worst else None
+            ranked, unknown = [], []
+            for r in rows:
+                k = (r["요인 종류"], r["요인"])
+                share = [worst[l] for l, f in cf.items() if k in f and l in worst]
+                if not share:
+                    unknown.append(f"{k[0]} {k[1]}")
+                    continue
+                ranked.append({**r, "같은 요인 다른 lot 수": len(share),
+                               "그 lot들 출하검사 최저 여유(%) 평균": round(statistics.mean(share), 1),
+                               "전체 비교군 평균": round(base, 1) if base is not None else None})
+            ranked.sort(key=lambda r: r["그 lot들 출하검사 최저 여유(%) 평균"])
+            out["문제 lot이 적을 때: 같은 요인을 가진 다른 lot의 품질(나쁜 순)"] = ranked[:15]
+            out["이 lot에만 있어 비교 불가한 요인"] = unknown[:20]
+            out["해석 주의"] += ". 문제 lot이 1~2개면 '차이'만으로는 우연한 요인을 걸러낼 수 없으니, 같은 요인을 가진 다른 lot의 품질이 나쁜지로 판단한다"
+        return out
+
+    def _oqc_meas(self, fg_lot):
+        """완제품 lot 출하검사 측정값 → [(항목, 규격 여유%)]"""
+        out = []
+        for l in self.s.links_to("fg_lot", fg_lot, "대상"):
+            if l["src_type"] != "inspection":
+                continue
+            ins = self.s.obj("inspection", l["src_id"])
+            for m in (ins or {}).get("props", {}).get("측정값") or []:
+                v, lo, hi = num(m["값"]), num(m["하한"]), num(m["상한"])
+                lo = None if lo is None or lo < -BIG else lo
+                hi = None if hi is None or hi > BIG else hi
+                mg = margin(v, lo, hi, m["항목"])
+                if mg is not None:
+                    out.append((m["항목"], mg))
+        return out
 
     # ===================== 판정 =====================
     def shippable(self, fg_lot, customer):

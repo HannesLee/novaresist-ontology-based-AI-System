@@ -11,3 +11,6 @@ truth/
 answer_key*
 /data/
 dump.rdb
+
+# ERP 내보내기 파일(용량 큼, 다시 만들 수 있음)
+erp_seed/erp_export_*
