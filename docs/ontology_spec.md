@@ -1,6 +1,6 @@
 # 노바레지스트 온톨로지 명세 v1.0
 
-설계: 이시형 · 이 문서는 `ontology/ontology.yaml`에서 자동으로 만든다(`python ontology/make_spec.py`). 정의를 바꾸려면 yaml을 고치거나 프로그램의 편집 화면을 쓴다.
+설계: 담당자 · 이 문서는 `ontology/ontology.yaml`에서 자동으로 만든다(`python ontology/make_spec.py`). 정의를 바꾸려면 yaml을 고치거나 프로그램의 편집 화면을 쓴다.
 
 ## 0. 원칙
 

@@ -24,7 +24,7 @@ CARD = {"1": "반드시 하나", "0..1": "없거나 하나", "N..1": "여럿이 
         "N..M": "여럿과 여럿", "N": "여럿"}
 
 w(f"# 노바레지스트 온톨로지 명세 v{d['meta']['version']}\n")
-w("설계: 이시형 · 이 문서는 `ontology/ontology.yaml`에서 자동으로 만든다(`python ontology/make_spec.py`). "
+w("설계: 담당자 · 이 문서는 `ontology/ontology.yaml`에서 자동으로 만든다(`python ontology/make_spec.py`). "
   "정의를 바꾸려면 yaml을 고치거나 프로그램의 편집 화면을 쓴다.\n")
 
 w("## 0. 원칙\n")

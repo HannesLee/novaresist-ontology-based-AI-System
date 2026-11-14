@@ -421,7 +421,7 @@ def onto_check(body: dict = Body(...)):
 
 @app.post("/ow/api/onto/save")
 def onto_save(body: dict = Body(...)):
-    r = editor.save(rt(), body["yaml"], body.get("author", "이시형"), body.get("reason", ""))
+    r = editor.save(rt(), body["yaml"], body.get("author", "담당자"), body.get("reason", ""))
     if r.get("ok"):
         runtime.reload_schema()
         STATE["sync"] = None
@@ -437,7 +437,7 @@ def onto_patch(body: dict = Body(...)):
     y = editor.apply_patch(editor.current(rt())["yaml"], body["path"], body["value"])
     if isinstance(y, dict):
         return y
-    return onto_save({"yaml": y, "author": body.get("author", "이시형"), "reason": body.get("reason") or f"{body['path']} 수정"})
+    return onto_save({"yaml": y, "author": body.get("author", "담당자"), "reason": body.get("reason") or f"{body['path']} 수정"})
 
 
 @app.get("/ow/api/onto/model")
@@ -451,7 +451,7 @@ def onto_op(body: dict = Body(...)):
     y = editor.apply_op(editor.current(rt())["yaml"], body)
     if isinstance(y, dict):
         return y
-    return onto_save({"yaml": y, "author": body.get("author", "이시형"), "reason": body.get("reason") or editor.describe_op(body)})
+    return onto_save({"yaml": y, "author": body.get("author", "담당자"), "reason": body.get("reason") or editor.describe_op(body)})
 
 
 @app.get("/ow/api/erp/fields")
@@ -493,7 +493,7 @@ def onto_rollback(body: dict = Body(...)):
     y = editor.version_yaml(rt(), body["version"])
     if y is None:
         return {"ok": False, "why": "버전 없음"}
-    return onto_save({"yaml": y, "author": body.get("author", "이시형"), "reason": f"v{body['version']}로 되돌림"})
+    return onto_save({"yaml": y, "author": body.get("author", "담당자"), "reason": f"v{body['version']}로 되돌림"})
 
 
 # ---------------- 작업대·내보내기 ----------------

@@ -47,7 +47,7 @@ app/
     office.py        xlsx·pptx·docx 내보내기
     bi.py            BI 어댑터
 ontology/
-  ontology.yaml      온톨로지 정의 (작성: 이시형)
+  ontology.yaml      온톨로지 정의 (작성: 담당자)
 docs/                명세·평가
 erp_seed/            가상 회사 데이터 적재 스크립트(nr_load.py 등)
 ```

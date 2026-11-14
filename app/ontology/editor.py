@@ -35,7 +35,7 @@ def _ensure_base(rt, text, d):
     if not db.execute("SELECT 1 FROM onto_versions LIMIT 1").fetchone():
         with db:
             db.execute("INSERT INTO onto_versions VALUES (?,?,?,?,?)",
-                       (str(d["meta"]["version"]), now(), "이시형", "처음 버전", text))
+                       (str(d["meta"]["version"]), now(), "담당자", "처음 버전", text))
 
 
 def flatten(x, p=""):
