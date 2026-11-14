@@ -116,8 +116,8 @@ Ontwin은 현업 용어 그대로 질문을 이해하고, 이상치 lot → 공�
 ERPNext가 Docker로 켜져 있어야 합니다(`http://localhost:8080`).
 
 ```bash
-git clone https://github.com/HannesLee/novaresist-ontology-based-ai-system.git
-cd novaresist-ontology-based-ai-system
+git clone https://github.com/HannesLee/novaresist-ontology-based-AI-System.git
+cd novaresist-ontology-based-AI-System
 pip install -r requirements.txt          # 처음 한 번
 cp .env.example .env                     # ERP 주소·API 키, Anthropic API 키 입력
 python3 -m app check                     # ERP 접속 + 정의 파일 검증
